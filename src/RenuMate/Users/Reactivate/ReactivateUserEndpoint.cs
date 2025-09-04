@@ -8,14 +8,14 @@ using Npgsql;
 using RenuMate.Common;
 using RenuMate.Persistence;
 
-namespace RenuMate.Auth.ConfirmEmail;
+namespace RenuMate.Users.Reactivate;
 
-public class ConfirmEmailEndpoint : EndpointWithoutRequest<Result<ConfirmEmailResponse>>
+public class ReactivateUserEndpoint : EndpointWithoutRequest<Result<ReactivateUserResponse>>
 {
     private readonly IConfiguration _configuration;
     private readonly RenuMateDbContext _db;
     
-    public ConfirmEmailEndpoint(IConfiguration configuration, RenuMateDbContext db)
+    public ReactivateUserEndpoint(IConfiguration configuration, RenuMateDbContext db)
     {
         _configuration = configuration;
         _db = db;
@@ -24,16 +24,16 @@ public class ConfirmEmailEndpoint : EndpointWithoutRequest<Result<ConfirmEmailRe
     public override void Configure()
     {
         AllowAnonymous();
-        Get("/api/auth/confirm-email");
+        Post("api/users/reactivate");
     }
 
-    public override async Task<Result<ConfirmEmailResponse>> HandleAsync(CancellationToken ct)
+    public override async Task<Result<ReactivateUserResponse>> HandleAsync(CancellationToken ct)
     {
         var token = Query<string>("token");
 
         if (string.IsNullOrWhiteSpace(token))
         {
-            return Result<ConfirmEmailResponse>.Failure("Token is missing.", ErrorType.BadRequest);
+            return Result<ReactivateUserResponse>.Failure("Token is missing.", ErrorType.BadRequest);
         }
 
         var tokenHandler = new JwtSecurityTokenHandler();
@@ -64,24 +64,31 @@ public class ConfirmEmailEndpoint : EndpointWithoutRequest<Result<ConfirmEmailRe
             var stringUserId = jwtToken.Claims.First(c => c.Type == "UserId").Value;
             var purpose = jwtToken.Claims.First(c => c.Type == "Purpose").Value;
 
-            if (purpose != "EmailConfirmation")
+            if (purpose != "Reactivate")
             {
-                return Result<ConfirmEmailResponse>.Failure("Invalid token purpose.", ErrorType.BadRequest);
+                return Result<ReactivateUserResponse>.Failure("Invalid token purpose.", ErrorType.BadRequest);
             }
 
             if (!Guid.TryParse(stringUserId, out var userId))
             {
-                return Result<ConfirmEmailResponse>.Failure("Invalid token.", ErrorType.BadRequest);
+                return Result<ReactivateUserResponse>.Failure("Invalid token.", ErrorType.BadRequest);
             }
             
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
 
-            if (user is null || user.IsEmailConfirmed)
+            if (user is null)
             {
-                return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+                return Result<ReactivateUserResponse>.Failure("Invalid or expired token.", 
+                    ErrorType.BadRequest);
             }
 
-            user.IsEmailConfirmed = true;
+            if (user.IsActive)
+            {
+                return Result<ReactivateUserResponse>.Failure("Your account is already active.", 
+                    ErrorType.Conflict);
+            }
+
+            user.IsActive = true;
             await _db.SaveChangesAsync(ct);
             
             var accessToken = JwtBearer.CreateToken(o =>
@@ -95,18 +102,18 @@ public class ConfirmEmailEndpoint : EndpointWithoutRequest<Result<ConfirmEmailRe
                 o.User.Claims.Add(("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
             });
             
-            return Result<ConfirmEmailResponse>.Success(new ConfirmEmailResponse
+            return Result<ReactivateUserResponse>.Success(new ReactivateUserResponse
             {
                 Token = accessToken
             });
         }
         catch (NpgsqlException npgsqlException)
         {
-            return Result<ConfirmEmailResponse>.Failure("An internal error occurred.", ErrorType.ServerError);
+            return Result<ReactivateUserResponse>.Failure("An internal error occurred.", ErrorType.ServerError);
         }
         catch (Exception ex)
         {
-            return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.");
+            return Result<ReactivateUserResponse>.Failure("Invalid or expired token.");
         }
     }
 }

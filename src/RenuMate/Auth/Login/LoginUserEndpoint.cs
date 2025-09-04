@@ -48,6 +48,13 @@ public class LoginUserEndpoint : Endpoint<LoginUserRequest, Result<LoginUserResp
             return Result<LoginUserResponse>.Failure("Invalid email or password.", ErrorType.Unauthorized);
         }
 
+        if (!user.IsActive)
+        {
+            return Result<LoginUserResponse>.Failure(
+                "Your account is deactivated. Please reactivate to log in.", ErrorType.Unauthorized 
+            );
+        }
+        
         var signingKey = _configuration["Jwt:SigningKey"];
 
         if (string.IsNullOrWhiteSpace(signingKey))
