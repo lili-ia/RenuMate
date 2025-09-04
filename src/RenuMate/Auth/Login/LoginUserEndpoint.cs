@@ -57,7 +57,7 @@ public class LoginUserEndpoint : Endpoint<LoginUserRequest, Result<LoginUserResp
 
         var accessToken = JwtBearer.CreateToken(o =>
         {
-            o.SigningKey = "A secret token signing key";
+            o.SigningKey = signingKey;
             o.ExpireAt = DateTime.UtcNow.AddHours(24);
             
             o.User.Claims.Add(("sub", user.Id.ToString()));

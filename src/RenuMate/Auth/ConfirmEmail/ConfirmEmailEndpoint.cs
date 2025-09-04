@@ -38,12 +38,14 @@ public class ConfirmEmailEndpoint : EndpointWithoutRequest<Result<ConfirmEmailRe
 
         var tokenHandler = new JwtSecurityTokenHandler();
         
-        var signingKey = Encoding.UTF8.GetBytes(_configuration["Jwt:SigningKey"] ?? string.Empty);
+        var signingKeyConfig = _configuration["Jwt:SigningKey"];
 
-        if (signingKey is null)
+        if (string.IsNullOrWhiteSpace(signingKeyConfig))
         {
             throw new InvalidOperationException("JWT signing key is not configured.");
         }
+        
+        var signingKey = Encoding.UTF8.GetBytes(signingKeyConfig);
 
         try
         {
@@ -76,7 +78,7 @@ public class ConfirmEmailEndpoint : EndpointWithoutRequest<Result<ConfirmEmailRe
 
             if (user is null)
             {
-                return Result<ConfirmEmailResponse>.Failure("User not found.", ErrorType.Unauthorized);
+                return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
             }
 
             if (user.IsEmailConfirmed)
@@ -90,7 +92,7 @@ public class ConfirmEmailEndpoint : EndpointWithoutRequest<Result<ConfirmEmailRe
             
             var accessToken = JwtBearer.CreateToken(o =>
             {
-                o.SigningKey = "A secret token signing key";
+                o.SigningKey = signingKeyConfig;
                 o.ExpireAt = DateTime.UtcNow.AddHours(24);
             
                 o.User.Claims.Add(("sub", user.Id.ToString()));
