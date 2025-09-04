@@ -62,6 +62,7 @@ public class LoginUserEndpoint : Endpoint<LoginUserRequest, Result<LoginUserResp
             
             o.User.Claims.Add(("sub", user.Id.ToString()));
             o.User.Claims.Add(("email", user.Email));
+            o.User.Claims.Add(("role", "User"));
             o.User.Claims.Add(("jti", Guid.NewGuid().ToString())); 
             o.User.Claims.Add(("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
         });
