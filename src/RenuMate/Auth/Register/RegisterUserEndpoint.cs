@@ -1,5 +1,4 @@
-using FastEndpoints;
-using FastEndpoints.Security;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
 using RenuMate.Entities;
@@ -8,34 +7,31 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.Register;
 
-public class RegisterUserEndpoint : Endpoint<RegisterUserRequest, Result<RegisterUserResponse>>
+public class RegisterUserEndpoint : IEndpoint
 {
-    private readonly RenuMateDbContext _db;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly IEmailSender _emailSender;
-    private readonly IConfiguration _configuration;
-    
-    public RegisterUserEndpoint(
-        RenuMateDbContext db, 
-        IPasswordHasher passwordHasher, 
-        IEmailSender emailSender, 
-        IConfiguration configuration)
-    {
-        _db = db;
-        _passwordHasher = passwordHasher;
-        _emailSender = emailSender;
-        _configuration = configuration;
-    }
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapPost("api/register", Handle)
+        .WithSummary("Registers a new user.");
 
-    public override void Configure()
+    public static async Task<Result<RegisterUserResponse>> Handle(
+        RegisterUserRequest request,
+        RenuMateDbContext db,
+        IPasswordHasher passwordHasher,
+        IConfiguration configuration,
+        ITokenService tokenService,
+        IEmailSender emailSender,
+        IValidator<RegisterUserRequest> validator,
+        ILogger<RegisterUserEndpoint> logger,
+        CancellationToken cancellationToken = default)
     {
-        AllowAnonymous();
-        Post("/api/auth/register");
-    }
-
-    public override async Task<Result<RegisterUserResponse>> HandleAsync(RegisterUserRequest req, CancellationToken ct)
-    {
-        var userExists = await _db.Users.AnyAsync(u => u.Email == req.Email, ct);
+        var validation = await validator.ValidateAsync(request, cancellationToken);
+        
+        if (!validation.IsValid)
+        {
+            return validation.ToFailureResult<RegisterUserResponse>();
+        }
+        
+        var userExists = await db.Users.AnyAsync(u => u.Email == request.Email, cancellationToken);
 
         if (userExists)
         {
@@ -43,13 +39,13 @@ public class RegisterUserEndpoint : Endpoint<RegisterUserRequest, Result<Registe
                 ErrorType.BadRequest);
         }
 
-        var hashedPassword = await _passwordHasher.HashPassword(req.Password);
+        var hashedPassword = passwordHasher.HashPassword(request.Password);
         
         var user = new User
         {
             Id = Guid.NewGuid(),
             CreatedAt = DateTime.UtcNow,
-            Email = req.Email,
+            Email = request.Email,
             PasswordHash = hashedPassword,
             IsEmailConfirmed = false,
             IsActive = true
@@ -57,30 +53,23 @@ public class RegisterUserEndpoint : Endpoint<RegisterUserRequest, Result<Registe
 
         try
         {
-            await _db.Users.AddAsync(user, ct);
-            await _db.SaveChangesAsync(ct);
+            await db.Users.AddAsync(user, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Error while registering user with email {Email}", request.Email);
+            
             return Result<RegisterUserResponse>.Failure("Internal error occurred.", ErrorType.ServerError);
         }
         
-        var signingKey = _configuration["Jwt:SigningKey"];
-
-        if (string.IsNullOrWhiteSpace(signingKey))
-        {
-            throw new InvalidOperationException("JWT signing key is not configured.");
-        }
-
-        var token = JwtBearer.CreateToken(o =>
-        {
-            o.SigningKey = signingKey;
-            o.ExpireAt = DateTime.UtcNow.AddHours(24);
-            o.User["UserId"] = user.Id.ToString();
-            o.User["Purpose"] = "EmailConfirmation";
-        });
+        var token = tokenService.CreateToken(
+            userId: user.Id.ToString(),
+            email: user.Email,
+            purpose: "ConfirmEmail",
+            expiresAt: DateTime.UtcNow.AddHours(24));
         
-        var frontendUrl = _configuration["App:FrontendUrl"];
+        var frontendUrl = configuration["App:FrontendUrl"];
 
         if (string.IsNullOrWhiteSpace(frontendUrl))
         {
@@ -92,11 +81,16 @@ public class RegisterUserEndpoint : Endpoint<RegisterUserRequest, Result<Registe
         var body = $"<p>Please confirm your email by clicking the link below:</p>" +
                    $"<p><a href='{confirmLink}'>Confirm Email</a></p>";
 
-        await _emailSender.SendEmailAsync(req.Email, "Confirm your email", body);
+        await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
         
         return Result<RegisterUserResponse>.Success(new RegisterUserResponse
         {
             Message = "Account created successfully. Please check your email to verify your account."
         });
     }
+}
+
+public class RegisterUserResponse
+{
+    public string Message { get; set; }
 }

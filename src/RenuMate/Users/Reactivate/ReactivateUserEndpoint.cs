@@ -1,119 +1,89 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Text;
-using FastEndpoints;
-using FastEndpoints.Security;
+using System.Security.Claims;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Npgsql;
 using RenuMate.Common;
 using RenuMate.Persistence;
+using RenuMate.Services.Contracts;
 
 namespace RenuMate.Users.Reactivate;
 
-public class ReactivateUserEndpoint : EndpointWithoutRequest<Result<ReactivateUserResponse>>
+public class ReactivateUserEndpoint : IEndpoint
 {
-    private readonly IConfiguration _configuration;
-    private readonly RenuMateDbContext _db;
-    
-    public ReactivateUserEndpoint(IConfiguration configuration, RenuMateDbContext db)
-    {
-        _configuration = configuration;
-        _db = db;
-    }
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapPost("api/users/reactivate", Handle)
+        .WithSummary("Reactivates user account.");
 
-    public override void Configure()
+    public static async Task<Result<ReactivateUserResponse>> Handle(
+        ReactivateUserRequest request,
+        IValidator<ReactivateUserRequest> validator,
+        ITokenService tokenService,
+        RenuMateDbContext db,
+        ILogger<ReactivateUserEndpoint> logger,
+        CancellationToken cancellationToken = default)
     {
-        AllowAnonymous();
-        Post("api/users/reactivate");
-    }
-
-    public override async Task<Result<ReactivateUserResponse>> HandleAsync(CancellationToken ct)
-    {
-        var token = Query<string>("token");
-
-        if (string.IsNullOrWhiteSpace(token))
+        var validation = await validator.ValidateAsync(request, cancellationToken);
+        
+        if (!validation.IsValid)
         {
-            return Result<ReactivateUserResponse>.Failure("Token is missing.", ErrorType.BadRequest);
+            return validation.ToFailureResult<ReactivateUserResponse>();
         }
 
-        var tokenHandler = new JwtSecurityTokenHandler();
+        var principal = tokenService.ValidateToken(request.Token, expectedPurpose: "ConfirmEmail");
         
-        var signingKeyConfig = _configuration["Jwt:SigningKey"];
-
-        if (string.IsNullOrWhiteSpace(signingKeyConfig))
+        if (principal == null)
         {
-            throw new InvalidOperationException("JWT signing key is not configured.");
+            return Result<ReactivateUserResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+        }
+
+        var stringUserId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        
+        if (!Guid.TryParse(stringUserId, out var userId))
+        {
+            return Result<ReactivateUserResponse>.Failure("Invalid token.", ErrorType.BadRequest);
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user is null)
+        {
+            return Result<ReactivateUserResponse>.Failure("Invalid or expired token.", 
+                ErrorType.BadRequest);
+        }
+
+        if (user.IsActive)
+        {
+            return Result<ReactivateUserResponse>.Failure("Your account is already active.", 
+                ErrorType.Conflict);
         }
         
-        var signingKey = Encoding.UTF8.GetBytes(signingKeyConfig);
-
+        user.IsActive = true;
+        
         try
         {
-            tokenHandler.ValidateToken(token, new TokenValidationParameters
-            {
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(signingKey),
-                ClockSkew = TimeSpan.Zero
-            }, out var validatedToken);
+            await db.SaveChangesAsync(cancellationToken);
 
-            var jwtToken = (JwtSecurityToken)validatedToken;
-
-            var stringUserId = jwtToken.Claims.First(c => c.Type == "UserId").Value;
-            var purpose = jwtToken.Claims.First(c => c.Type == "Purpose").Value;
-
-            if (purpose != "Reactivate")
-            {
-                return Result<ReactivateUserResponse>.Failure("Invalid token purpose.", ErrorType.BadRequest);
-            }
-
-            if (!Guid.TryParse(stringUserId, out var userId))
-            {
-                return Result<ReactivateUserResponse>.Failure("Invalid token.", ErrorType.BadRequest);
-            }
-            
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-
-            if (user is null)
-            {
-                return Result<ReactivateUserResponse>.Failure("Invalid or expired token.", 
-                    ErrorType.BadRequest);
-            }
-
-            if (user.IsActive)
-            {
-                return Result<ReactivateUserResponse>.Failure("Your account is already active.", 
-                    ErrorType.Conflict);
-            }
-
-            user.IsActive = true;
-            await _db.SaveChangesAsync(ct);
-            
-            var accessToken = JwtBearer.CreateToken(o =>
-            {
-                o.SigningKey = signingKeyConfig;
-                o.ExpireAt = DateTime.UtcNow.AddHours(24);
-            
-                o.User.Claims.Add(("sub", user.Id.ToString()));
-                o.User.Claims.Add(("email", user.Email));
-                o.User.Claims.Add(("jti", Guid.NewGuid().ToString())); 
-                o.User.Claims.Add(("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
-            });
+            var accessToken = tokenService.CreateToken(
+                userId: userId.ToString(), 
+                email: user.Email, 
+                purpose: "Reactivate",
+                expiresAt: DateTime.UtcNow.AddHours(24));
             
             return Result<ReactivateUserResponse>.Success(new ReactivateUserResponse
             {
                 Token = accessToken
             });
         }
-        catch (NpgsqlException npgsqlException)
-        {
-            return Result<ReactivateUserResponse>.Failure("An internal error occurred.", ErrorType.ServerError);
-        }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Error while reactivating user with {UserId}", user.Id);
+            
             return Result<ReactivateUserResponse>.Failure("Invalid or expired token.");
         }
     }
+}
+
+public class ReactivateUserResponse
+{
+    public string Token { get; set; }
 }

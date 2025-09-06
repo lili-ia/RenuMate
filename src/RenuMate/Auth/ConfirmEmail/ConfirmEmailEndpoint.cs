@@ -1,112 +1,85 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Text;
-using FastEndpoints;
-using FastEndpoints.Security;
+using System.Security.Claims;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Npgsql;
 using RenuMate.Common;
 using RenuMate.Persistence;
+using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.ConfirmEmail;
 
-public class ConfirmEmailEndpoint : EndpointWithoutRequest<Result<ConfirmEmailResponse>>
+public class ConfirmEmailEndpoint : IEndpoint
 {
-    private readonly IConfiguration _configuration;
-    private readonly RenuMateDbContext _db;
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapGet("api/auth/confirm-email", Handle)
+        .WithSummary("Confirms email.");
     
-    public ConfirmEmailEndpoint(IConfiguration configuration, RenuMateDbContext db)
+    public static async Task<Result<ConfirmEmailResponse>> Handle(
+        ConfirmEmailRequest request,
+        RenuMateDbContext db,
+        ITokenService tokenService,
+        ILogger<ConfirmEmailEndpoint> logger,
+        IValidator<ConfirmEmailRequest> validator,
+        CancellationToken cancellationToken = default)
     {
-        _configuration = configuration;
-        _db = db;
-    }
-
-    public override void Configure()
-    {
-        AllowAnonymous();
-        Get("/api/auth/confirm-email");
-    }
-
-    public override async Task<Result<ConfirmEmailResponse>> HandleAsync(CancellationToken ct)
-    {
-        var token = Query<string>("token");
-
-        if (string.IsNullOrWhiteSpace(token))
+        var validation = await validator.ValidateAsync(request, cancellationToken);
+        
+        if (!validation.IsValid)
         {
-            return Result<ConfirmEmailResponse>.Failure("Token is missing.", ErrorType.BadRequest);
+            return validation.ToFailureResult<ConfirmEmailResponse>();
         }
 
-        var tokenHandler = new JwtSecurityTokenHandler();
+        var principal = tokenService.ValidateToken(request.Token, expectedPurpose: "ConfirmEmail");
         
-        var signingKeyConfig = _configuration["Jwt:SigningKey"];
-
-        if (string.IsNullOrWhiteSpace(signingKeyConfig))
+        if (principal == null)
         {
-            throw new InvalidOperationException("JWT signing key is not configured.");
+            return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
         }
-        
-        var signingKey = Encoding.UTF8.GetBytes(signingKeyConfig);
 
+        var stringUserId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        
+        if (!Guid.TryParse(stringUserId, out var userId))
+        {
+            return Result<ConfirmEmailResponse>.Failure("Invalid token.", ErrorType.BadRequest);
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user is null || user.IsEmailConfirmed)
+        {
+            return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+        }
+
+        user.IsEmailConfirmed = true;
+        
         try
         {
-            tokenHandler.ValidateToken(token, new TokenValidationParameters
-            {
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(signingKey),
-                ClockSkew = TimeSpan.Zero
-            }, out var validatedToken);
-
-            var jwtToken = (JwtSecurityToken)validatedToken;
-
-            var stringUserId = jwtToken.Claims.First(c => c.Type == "UserId").Value;
-            var purpose = jwtToken.Claims.First(c => c.Type == "Purpose").Value;
-
-            if (purpose != "EmailConfirmation")
-            {
-                return Result<ConfirmEmailResponse>.Failure("Invalid token purpose.", ErrorType.BadRequest);
-            }
-
-            if (!Guid.TryParse(stringUserId, out var userId))
-            {
-                return Result<ConfirmEmailResponse>.Failure("Invalid token.", ErrorType.BadRequest);
-            }
+            await db.SaveChangesAsync(cancellationToken);
             
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-
-            if (user is null || user.IsEmailConfirmed)
-            {
-                return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
-            }
-
-            user.IsEmailConfirmed = true;
-            await _db.SaveChangesAsync(ct);
-            
-            var accessToken = JwtBearer.CreateToken(o =>
-            {
-                o.SigningKey = signingKeyConfig;
-                o.ExpireAt = DateTime.UtcNow.AddHours(24);
-            
-                o.User.Claims.Add(("sub", user.Id.ToString()));
-                o.User.Claims.Add(("email", user.Email));
-                o.User.Claims.Add(("jti", Guid.NewGuid().ToString())); 
-                o.User.Claims.Add(("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
-            });
+            var accessToken = tokenService.CreateToken(
+                userId: user.Id.ToString(),
+                email: user.Email,
+                purpose: "Access",
+                expiresAt: DateTime.UtcNow.AddHours(24));
             
             return Result<ConfirmEmailResponse>.Success(new ConfirmEmailResponse
             {
+                Message = "Email confirmed successfully.",
                 Token = accessToken
             });
         }
-        catch (NpgsqlException npgsqlException)
-        {
-            return Result<ConfirmEmailResponse>.Failure("An internal error occurred.", ErrorType.ServerError);
-        }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Error while confirming email for user {UserId}", userId);
+            
             return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.");
         }
     }
+}
+
+public class ConfirmEmailResponse
+{
+    public string Message { get; set; } = null!;
+
+    public string Token { get; set; } = null!;
 }

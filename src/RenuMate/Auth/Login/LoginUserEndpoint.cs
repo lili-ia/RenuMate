@@ -1,5 +1,4 @@
-using FastEndpoints;
-using FastEndpoints.Security;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
 using RenuMate.Persistence;
@@ -7,41 +6,38 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.Login;
 
-public class LoginUserEndpoint : Endpoint<LoginUserRequest, Result<LoginUserResponse>>
+public class LoginUserEndpoint : IEndpoint
 {
-    private readonly RenuMateDbContext _db;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly IConfiguration _configuration;
-    
-    public LoginUserEndpoint(
-        RenuMateDbContext db, 
-        IPasswordHasher passwordHasher, 
-        IConfiguration configuration)
-    {
-        _db = db;
-        _passwordHasher = passwordHasher;
-        _configuration = configuration;
-    }
-    
-    public override void Configure()
-    {
-        AllowAnonymous();
-        Post("/api/auth/login");
-    }
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapPost("api/login", Handle)
+        .WithSummary("Logs new user in.");
 
-    public override async Task<Result<LoginUserResponse>> HandleAsync(LoginUserRequest req, CancellationToken ct)
+    public static async Task<Result<LoginUserResponse>> Handle(
+        LoginUserRequest request,
+        RenuMateDbContext db,
+        IPasswordHasher passwordHasher,
+        ITokenService tokenService,
+        IConfiguration configuration,
+        IValidator<LoginUserRequest> validator,
+        CancellationToken cancellationToken = default)
     {
-        var user = await _db.Users
+        var validation = await validator.ValidateAsync(request, cancellationToken);
+        
+        if (!validation.IsValid)
+        {
+            return validation.ToFailureResult<LoginUserResponse>();
+        }
+        
+        var user = await db.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Email == req.Email, ct);
+            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
 
         if (user is null)
         {
             return Result<LoginUserResponse>.Failure("Invalid email or password.", ErrorType.Unauthorized);
         }
         
-        var passwordValid = await _passwordHasher
-            .VerifyHashedPassword(req.Password, user.PasswordHash);
+        var passwordValid = passwordHasher.VerifyHashedPassword(request.Password, user.PasswordHash);
         
         if (!passwordValid)
         {
@@ -55,28 +51,20 @@ public class LoginUserEndpoint : Endpoint<LoginUserRequest, Result<LoginUserResp
             );
         }
         
-        var signingKey = _configuration["Jwt:SigningKey"];
-
-        if (string.IsNullOrWhiteSpace(signingKey))
-        {
-            throw new InvalidOperationException("JWT signing key is not configured.");
-        }
-
-        var accessToken = JwtBearer.CreateToken(o =>
-        {
-            o.SigningKey = signingKey;
-            o.ExpireAt = DateTime.UtcNow.AddHours(24);
-            
-            o.User.Claims.Add(("sub", user.Id.ToString()));
-            o.User.Claims.Add(("email", user.Email));
-            o.User.Claims.Add(("role", "User"));
-            o.User.Claims.Add(("jti", Guid.NewGuid().ToString())); 
-            o.User.Claims.Add(("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
-        });
+        var token = tokenService.CreateToken(
+            userId: user.Id.ToString(),
+            email: user.Email,
+            purpose: "Access",
+            expiresAt: DateTime.UtcNow.AddHours(24));
         
         return Result<LoginUserResponse>.Success(new LoginUserResponse
         {
-            JwtToken = accessToken
+            AccessToken = token
         });
     }
+}
+
+public class LoginUserResponse
+{
+    public string AccessToken { get; set; }
 }

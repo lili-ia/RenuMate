@@ -1,5 +1,4 @@
-using FastEndpoints;
-using FastEndpoints.Security;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
 using RenuMate.Persistence;
@@ -7,28 +6,29 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Users.RequestReactivate;
 
-public class RequestUserReactivateEndpoint : Endpoint<ReactivateRequest, Result<ReactivateRequestResponse>>
+public class RequestUserReactivateEndpoint : IEndpoint
 {
-    private readonly RenuMateDbContext _db;
-    private readonly IEmailSender _emailSender;
-    private readonly IConfiguration _configuration;
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapPost("api/users/reactivate-request", Handle)
+        .WithSummary("Requests user account reactivation.");
 
-    public RequestUserReactivateEndpoint(RenuMateDbContext db, IEmailSender emailSender, IConfiguration configuration)
+    public static async Task<Result<ReactivateRequestResponse>> Handle(
+        ReactivateRequest request, 
+        RenuMateDbContext db,
+        ITokenService tokenService,
+        IConfiguration configuration,
+        IEmailSender emailSender,
+        IValidator<ReactivateRequest> validator,
+        CancellationToken cancellationToken = default)
     {
-        _db = db;
-        _emailSender = emailSender;
-        _configuration = configuration;
-    }
-
-    public override void Configure()
-    {
-        AllowAnonymous();
-        Post("api/users/reactivate-request");
-    }
-
-    public override async Task<Result<ReactivateRequestResponse>> HandleAsync(ReactivateRequest req, CancellationToken ct)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email, ct);
+        var validation = await validator.ValidateAsync(request, cancellationToken);
+        
+        if (!validation.IsValid)
+        {
+            return validation.ToFailureResult<ReactivateRequestResponse>();
+        }
+        
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
 
         if (user is null || user.IsActive)
         {
@@ -38,30 +38,27 @@ public class RequestUserReactivateEndpoint : Endpoint<ReactivateRequest, Result<
             });
         }
 
-        var signingKey = _configuration["Jwt:SigningKey"];
-        var frontendUrl = _configuration["App:FrontendUrl"];
+        var frontendUrl = configuration["App:FrontendUrl"];
 
-        if (string.IsNullOrWhiteSpace(signingKey) || string.IsNullOrWhiteSpace(frontendUrl))
-        {
-            throw new InvalidOperationException("JWT signing key or frontend url is not configured.");
-        }
-        
-        var token = JwtBearer.CreateToken(o =>
-        {
-            o.SigningKey = signingKey;
-            o.ExpireAt = DateTime.UtcNow.AddHours(1);
-            o.User["UserId"] = user.Id.ToString();
-            o.User["Purpose"] = "Reactivate";
-        });
+        var token = tokenService.CreateToken(
+            userId: user.Id.ToString(),
+            email: user.Email,
+            purpose: "Reactivate",
+            expiresAt: DateTime.UtcNow.AddHours(1));
 
         var link = $"{frontendUrl}/reactivate-account?token={Uri.EscapeDataString(token)}";
         var body = $"<p>Click the link to reactivate your account:</p><p><a href='{link}'>Reactivate Account</a></p>";
 
-        await _emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
+        await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
 
         return Result<ReactivateRequestResponse>.Success(new ReactivateRequestResponse
         {
             Message = "If your account exists and is deactivated, a reactivation email was sent."
         });
     }
+}
+
+public class ReactivateRequestResponse
+{
+    public string Message { get; set; }
 }

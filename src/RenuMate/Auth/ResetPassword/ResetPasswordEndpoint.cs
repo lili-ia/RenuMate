@@ -1,7 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
-using FastEndpoints;
-using FastEndpoints.Security;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
@@ -11,99 +11,78 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.ResetPassword;
 
-public class ResetPasswordEndpoint : Endpoint<ResetPasswordRequest, Result<ResetPasswordResponse>>
+public class ResetPasswordEndpoint : IEndpoint
 {
-    private readonly RenuMateDbContext _db;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly IConfiguration _configuration;
-    
-    public ResetPasswordEndpoint(RenuMateDbContext db, IPasswordHasher passwordHasher, IConfiguration configuration)
-    {
-        _db = db;
-        _passwordHasher = passwordHasher;
-        _configuration = configuration;
-    }
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapPost("/api/auth/reset-password", Handle)
+        .WithSummary("Resets password.");
 
-    public override void Configure()
+    public static async Task<Result<ResetPasswordResponse>> Handle(
+        ResetPasswordRequest request, 
+        ITokenService tokenService,
+        IConfiguration configuration,
+        RenuMateDbContext db,
+        IPasswordHasher passwordHasher,
+        ILogger<ResetPasswordEndpoint> logger,
+        IValidator<ResetPasswordRequest> validator,
+        CancellationToken cancellationToken = default)
     {
-        AllowAnonymous();
-        Post("/api/auth/reset-password");
-    }
-
-    public override async Task<Result<ResetPasswordResponse>> HandleAsync(ResetPasswordRequest req, CancellationToken ct)
-    {
-        var tokenHandler = new JwtSecurityTokenHandler();
+        var validation = await validator.ValidateAsync(request, cancellationToken);
         
-        var signingKeyConfig = _configuration["Jwt:SigningKey"];
-
-        if (string.IsNullOrWhiteSpace(signingKeyConfig))
+        if (!validation.IsValid)
         {
-            throw new InvalidOperationException("JWT signing key is not configured.");
+            return validation.ToFailureResult<ResetPasswordResponse>();
         }
         
-        var signingKey = Encoding.UTF8.GetBytes(signingKeyConfig);
+        var principal = tokenService.ValidateToken(request.Token, expectedPurpose: "ConfirmEmail");
+        
+        if (principal == null)
+        {
+            return Result<ResetPasswordResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+        }
 
+        var stringUserId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        
+        if (!Guid.TryParse(stringUserId, out var userId))
+        {
+            return Result<ResetPasswordResponse>.Failure("Invalid token.", ErrorType.BadRequest);
+        }
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user is null)
+        {
+            return Result<ResetPasswordResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+        }
+        
+        var newHashedPassword = passwordHasher.HashPassword(request.NewPassword);
+        
         try
         {
-            tokenHandler.ValidateToken(req.Token, new TokenValidationParameters
-            {
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(signingKey),
-                ClockSkew = TimeSpan.Zero
-            }, out var validatedToken);
-
-            var jwtToken = (JwtSecurityToken)validatedToken;
-
-            var stringUserId = jwtToken.Claims.First(c => c.Type == "UserId").Value;
-            var purpose = jwtToken.Claims.First(c => c.Type == "Purpose").Value;
-
-            if (purpose != "PasswordReset")
-            {
-                return Result<ResetPasswordResponse>.Failure("Invalid token purpose.", ErrorType.BadRequest);
-            }
-
-            if (!Guid.TryParse(stringUserId, out var userId))
-            {
-                return Result<ResetPasswordResponse>.Failure("Invalid token.", ErrorType.BadRequest);
-            }
-            
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-
-            if (user is null)
-            {
-                return Result<ResetPasswordResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
-            }
-
-            var newHashedPassword = await _passwordHasher.HashPassword(req.NewPassword);
             user.PasswordHash = newHashedPassword;
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(cancellationToken);
             
-            var accessToken = JwtBearer.CreateToken(o =>
-            {
-                o.SigningKey = signingKeyConfig;
-                o.ExpireAt = DateTime.UtcNow.AddHours(24);
-            
-                o.User.Claims.Add(("sub", user.Id.ToString()));
-                o.User.Claims.Add(("email", user.Email));
-                o.User.Claims.Add(("jti", Guid.NewGuid().ToString())); 
-                o.User.Claims.Add(("iat", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
-            });
+            var token = tokenService.CreateToken(
+                userId: user.Id.ToString(),
+                email: user.Email,
+                purpose: "Access",
+                expiresAt: DateTime.UtcNow.AddHours(24));
             
             return Result<ResetPasswordResponse>.Success(new ResetPasswordResponse
             {
-                Token = accessToken
+                Token = token
             });
-        }
-        catch (NpgsqlException npgsqlException)
-        {
-            return Result<ResetPasswordResponse>.Failure("An internal error occurred.", ErrorType.ServerError);
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Error while resetting password for user {UserId}.", user.Id);
+
             return Result<ResetPasswordResponse>.Failure("Invalid or expired token.");
         }
     }
+}
+
+public class ResetPasswordResponse
+{
+    public string Token { get; set; } = null!;
 }

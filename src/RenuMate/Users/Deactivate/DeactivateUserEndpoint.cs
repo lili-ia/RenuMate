@@ -1,4 +1,3 @@
-using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
 using RenuMate.Persistence;
@@ -6,26 +5,19 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Users.Deactivate;
 
-public class DeactivateUserEndpoint : EndpointWithoutRequest<Result<DeactivateUserResponse>>
+public class DeactivateUserEndpoint : IEndpoint
 {
-    private readonly IUserContext _userContext;
-    private readonly RenuMateDbContext _db;
-    
-    public DeactivateUserEndpoint(IUserContext userContext, RenuMateDbContext db)
-    {
-        _userContext = userContext;
-        _db = db;
-    }
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapDelete("api/users", Handle)
+        .WithSummary("Deactivates user account.")
+        .RequireAuthorization();
 
-    public override void Configure()
+    public static async Task<Result<DeactivateUserResponse>> Handle(
+        RenuMateDbContext db,
+        IUserContext userContext,
+        CancellationToken cancellationToken = default)
     {
-        Roles("User");
-        Delete("/api/users");
-    }
-
-    public override async Task<Result<DeactivateUserResponse>> HandleAsync(CancellationToken ct)
-    {
-        var userId = _userContext.UserId;
+        var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
@@ -34,10 +26,10 @@ public class DeactivateUserEndpoint : EndpointWithoutRequest<Result<DeactivateUs
         
         try
         {
-            var rows = await _db.Users
+            var rows = await db.Users
                 .Where(u => u.Id == userId)
                 .ExecuteUpdateAsync(setter => setter
-                    .SetProperty(u => u.IsActive, false), ct);
+                    .SetProperty(u => u.IsActive, false), cancellationToken);
             
             if (rows == 0)
             {
