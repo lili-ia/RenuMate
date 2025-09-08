@@ -1,6 +1,8 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -13,12 +15,12 @@ public class RequestUserReactivateEndpoint : IEndpoint
         .WithSummary("Requests user account reactivation.");
 
     public static async Task<Result<ReactivateRequestResponse>> Handle(
-        ReactivateRequest request, 
-        RenuMateDbContext db,
-        ITokenService tokenService,
-        IConfiguration configuration,
-        IEmailSender emailSender,
-        IValidator<ReactivateRequest> validator,
+        [FromBody] ReactivateRequest request, 
+        [FromServices] RenuMateDbContext db,
+        [FromServices] ITokenService tokenService,
+        [FromServices] IConfiguration configuration,
+        [FromServices] IEmailSender emailSender,
+        [FromServices] IValidator<ReactivateRequest> validator,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -46,7 +48,7 @@ public class RequestUserReactivateEndpoint : IEndpoint
             purpose: "Reactivate",
             expiresAt: DateTime.UtcNow.AddHours(1));
 
-        var link = $"{frontendUrl}/reactivate-account?token={Uri.EscapeDataString(token)}";
+        var link = $"{frontendUrl}/reactivate?token={Uri.EscapeDataString(token)}";
         var body = $"<p>Click the link to reactivate your account:</p><p><a href='{link}'>Reactivate Account</a></p>";
 
         await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);

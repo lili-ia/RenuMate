@@ -1,11 +1,9 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Npgsql;
 using RenuMate.Common;
+using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -14,34 +12,43 @@ namespace RenuMate.Auth.ResetPassword;
 public class ResetPasswordEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapPost("/api/auth/reset-password", Handle)
+        .MapPost("api/auth/reset-password", Handle)
         .WithSummary("Resets password.");
 
     public static async Task<Result<ResetPasswordResponse>> Handle(
-        ResetPasswordRequest request, 
-        ITokenService tokenService,
-        IConfiguration configuration,
-        RenuMateDbContext db,
-        IPasswordHasher passwordHasher,
-        ILogger<ResetPasswordEndpoint> logger,
-        IValidator<ResetPasswordRequest> validator,
+        [FromQuery] string token,
+        [FromBody] ResetPasswordRequest request, 
+        [FromServices] ITokenService tokenService,
+        [FromServices] IConfiguration configuration,
+        [FromServices] RenuMateDbContext db,
+        [FromServices] IPasswordHasher passwordHasher,
+        [FromServices] ILogger<ResetPasswordEndpoint> logger,
+        [FromServices] IValidator<ResetPasswordRequest> requestValidator,
+        [FromServices] IValidator<string> tokenValidator,
         CancellationToken cancellationToken = default)
     {
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var requestValidation = await requestValidator.ValidateAsync(request, cancellationToken);
         
-        if (!validation.IsValid)
+        if (!requestValidation.IsValid)
         {
-            return validation.ToFailureResult<ResetPasswordResponse>();
+            return requestValidation.ToFailureResult<ResetPasswordResponse>();
         }
         
-        var principal = tokenService.ValidateToken(request.Token, expectedPurpose: "ConfirmEmail");
+        var tokenValidation = await requestValidator.ValidateAsync(request, cancellationToken);
+        
+        if (!tokenValidation.IsValid)
+        {
+            return tokenValidation.ToFailureResult<ResetPasswordResponse>();
+        }
+        
+        var principal = tokenService.ValidateToken(token, expectedPurpose: "ConfirmEmail");
         
         if (principal == null)
         {
             return Result<ResetPasswordResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
         }
 
-        var stringUserId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {
@@ -62,7 +69,7 @@ public class ResetPasswordEndpoint : IEndpoint
             user.PasswordHash = newHashedPassword;
             await db.SaveChangesAsync(cancellationToken);
             
-            var token = tokenService.CreateToken(
+            var accessToken = tokenService.CreateToken(
                 userId: user.Id.ToString(),
                 email: user.Email,
                 purpose: "Access",
@@ -70,7 +77,7 @@ public class ResetPasswordEndpoint : IEndpoint
             
             return Result<ResetPasswordResponse>.Success(new ResetPasswordResponse
             {
-                Token = token
+                Token = accessToken
             });
         }
         catch (Exception ex)

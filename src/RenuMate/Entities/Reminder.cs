@@ -2,7 +2,7 @@ namespace RenuMate.Entities;
 
 public class Reminder : BaseEntity
 {
-    public int SubscriptionId { get; set; }
+    public Guid SubscriptionId { get; set; }
     
     public Subscription Subscription { get; set; } = null!;
 

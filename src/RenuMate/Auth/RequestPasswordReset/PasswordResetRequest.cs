@@ -1,15 +1,15 @@
 using FluentValidation;
 
-namespace RenuMate.Auth.RequestPasswordRecover;
+namespace RenuMate.Auth.RequestPasswordReset;
 
-public class PasswordRecoverRequest
+public class PasswordResetRequest
 {
     public string Email { get; set; }
 }
 
-public class PasswordRecoverRequestValidator : AbstractValidator<PasswordRecoverRequest>
+public class PasswordResetRequestValidator : AbstractValidator<PasswordResetRequest>
 {
-    public PasswordRecoverRequestValidator()
+    public PasswordResetRequestValidator()
     {
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required.")

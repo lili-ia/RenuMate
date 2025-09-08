@@ -1,38 +1,40 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
-namespace RenuMate.Auth.RequestPasswordRecover;
+namespace RenuMate.Auth.RequestPasswordReset;
 
-public class RequestPasswordRecoverEndpoint : IEndpoint
+public class PasswordResetRequestEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/recover-password-request", Handle)
         .WithSummary("Requests a password recover for user.");
 
-    public static async Task<Result<RequestPasswordRecoverResponse>> Handle(
-        PasswordRecoverRequest request,
-        RenuMateDbContext db,
-        IConfiguration configuration,
-        IEmailSender emailSender,
-        ITokenService tokenService,
-        IValidator<PasswordRecoverRequest> validator,
+    public static async Task<Result<PasswordResetRequestResponse>> Handle(
+        [FromBody] PasswordResetRequest request,
+        [FromServices] RenuMateDbContext db,
+        [FromServices] IConfiguration configuration,
+        [FromServices] IEmailSender emailSender,
+        [FromServices] ITokenService tokenService,
+        [FromServices] IValidator<PasswordResetRequest> validator,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<RequestPasswordRecoverResponse>();
+            return validation.ToFailureResult<PasswordResetRequestResponse>();
         }
         
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
         
         if (user is null)
         {
-            return Result<RequestPasswordRecoverResponse>.Success(new RequestPasswordRecoverResponse
+            return Result<PasswordResetRequestResponse>.Success(new PasswordResetRequestResponse
             {
                 Message = "If an account exists, a password reset email was sent."
             });
@@ -65,14 +67,14 @@ public class RequestPasswordRecoverEndpoint : IEndpoint
         
         await emailSender.SendEmailAsync(user.Email, "Password Reset", body);
         
-        return Result<RequestPasswordRecoverResponse>.Success(new RequestPasswordRecoverResponse
+        return Result<PasswordResetRequestResponse>.Success(new PasswordResetRequestResponse
         {
             Message = "If an account exists, a password reset email was sent."
         });
     }
 }
 
-public class RequestPasswordRecoverResponse
+public class PasswordResetRequestResponse
 {
     public string Message { get; set; }
 }

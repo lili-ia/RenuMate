@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
 using RenuMate.Persistence;
@@ -13,8 +14,8 @@ public class DeactivateUserEndpoint : IEndpoint
         .RequireAuthorization();
 
     public static async Task<Result<DeactivateUserResponse>> Handle(
-        RenuMateDbContext db,
-        IUserContext userContext,
+        [FromServices] RenuMateDbContext db,
+        [FromServices] IUserContext userContext,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;

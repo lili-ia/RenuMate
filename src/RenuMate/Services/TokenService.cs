@@ -3,7 +3,6 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using RenuMate.Services.Contracts;
-using JwtRegisteredClaimNames = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames;
 
 namespace RenuMate.Services;
 
@@ -20,8 +19,8 @@ public class TokenService : ITokenService
     {
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, userId),
-            new(JwtRegisteredClaimNames.Email, email),
+            new(ClaimTypes.NameIdentifier, userId),
+            new(ClaimTypes.Email, email),
             new("purpose", purpose)
         };
 

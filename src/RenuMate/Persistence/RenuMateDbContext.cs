@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Entities;
+using RenuMate.Enums;
 
 namespace RenuMate.Persistence;
 
@@ -47,7 +48,7 @@ public class RenuMateDbContext : DbContext
             
             entity.Property(e => e.Currency)
                 .HasMaxLength(10)
-                .HasDefaultValue("USD");
+                .HasDefaultValue(Currency.USD);
             
             modelBuilder.Entity<Subscription>()
                 .Property(s => s.Note)

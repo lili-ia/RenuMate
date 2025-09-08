@@ -1,8 +1,9 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -15,28 +16,28 @@ public class ReactivateUserEndpoint : IEndpoint
         .WithSummary("Reactivates user account.");
 
     public static async Task<Result<ReactivateUserResponse>> Handle(
-        ReactivateUserRequest request,
-        IValidator<ReactivateUserRequest> validator,
-        ITokenService tokenService,
-        RenuMateDbContext db,
-        ILogger<ReactivateUserEndpoint> logger,
+        [FromQuery] string token,
+        [FromServices] IValidator<string> validator,
+        [FromServices] ITokenService tokenService,
+        [FromServices] RenuMateDbContext db,
+        [FromServices] ILogger<ReactivateUserEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var validation = await validator.ValidateAsync(token, cancellationToken);
         
         if (!validation.IsValid)
         {
             return validation.ToFailureResult<ReactivateUserResponse>();
         }
 
-        var principal = tokenService.ValidateToken(request.Token, expectedPurpose: "ConfirmEmail");
+        var principal = tokenService.ValidateToken(token, expectedPurpose: "Reactivate");
         
         if (principal == null)
         {
             return Result<ReactivateUserResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
         }
 
-        var stringUserId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {

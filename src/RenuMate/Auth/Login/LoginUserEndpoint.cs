@@ -1,6 +1,8 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -9,16 +11,16 @@ namespace RenuMate.Auth.Login;
 public class LoginUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapPost("api/login", Handle)
+        .MapPost("api/auth/login", Handle)
         .WithSummary("Logs new user in.");
 
     public static async Task<Result<LoginUserResponse>> Handle(
-        LoginUserRequest request,
-        RenuMateDbContext db,
-        IPasswordHasher passwordHasher,
-        ITokenService tokenService,
-        IConfiguration configuration,
-        IValidator<LoginUserRequest> validator,
+        [FromBody] LoginUserRequest request,
+        [FromServices] RenuMateDbContext db,
+        [FromServices] IPasswordHasher passwordHasher,
+        [FromServices] ITokenService tokenService,
+        [FromServices] IConfiguration configuration,
+        [FromServices] IValidator<LoginUserRequest> validator,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);

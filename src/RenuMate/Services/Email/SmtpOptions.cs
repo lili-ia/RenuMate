@@ -6,11 +6,9 @@ public class SmtpOptions
     
     public int Port { get; set; }
     
-    public string User { get; set; } = null!;
+    public string FromEmail { get; set; } = null!;
     
     public string Password { get; set; } = null!;
     
-    public string FromEmail { get; set; } = null!;
-    
-    public string FromName { get; set; } = null!;
+    public string User { get; set; } = null!; 
 }

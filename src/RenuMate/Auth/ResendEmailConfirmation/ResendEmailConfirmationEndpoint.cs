@@ -1,28 +1,28 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RenuMate.Auth.Register;
 using RenuMate.Common;
-using RenuMate.Entities;
 using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
-namespace RenuMate.Auth.Register;
+namespace RenuMate.Auth.ResendEmailConfirmation;
 
-public class RegisterUserEndpoint : IEndpoint
+public class ResendEmailConfirmationEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapPost("api/auth/register", Handle)
-        .WithSummary("Registers a new user.");
+        .MapPost("api/auth/resend-email-confirmation", Handle)
+        .WithSummary("Resends email confirmation.");
 
     private static async Task<IResult> Handle(
-        [FromBody] RegisterUserRequest request,
+        [FromBody] ResendEmailConfirmationRequest request,
         RenuMateDbContext db,
         IPasswordHasher passwordHasher,
         IConfiguration configuration,
         ITokenService tokenService,
         IEmailSender emailSender,
-        IValidator<RegisterUserRequest> validator,
+        IValidator<ResendEmailConfirmationRequest> validator,
         ILogger<RegisterUserEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
@@ -30,40 +30,23 @@ public class RegisterUserEndpoint : IEndpoint
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<RegisterUserResponse>().ToIResult();
+            return validation.ToFailureResult<ResendEmailConfirmationResponse>().ToIResult();
         }
         
-        var userExists = await db.Users.AnyAsync(u => u.Email == request.Email, cancellationToken);
+        var user = await db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
 
-        if (userExists)
+        if (user is null)
         {
-            return Result<RegisterUserResponse>.Failure("User with this email already registered.", 
-                ErrorType.BadRequest).ToIResult();
+            return Result<ResendEmailConfirmationResponse>.Failure(
+                "User not found.", ErrorType.NotFound).ToIResult();
         }
-
-        var hashedPassword = passwordHasher.HashPassword(request.Password);
         
-        var user = new User
+        if (user.IsEmailConfirmed)
         {
-            Id = Guid.NewGuid(),
-            CreatedAt = DateTime.UtcNow,
-            Email = request.Email,
-            PasswordHash = hashedPassword,
-            IsEmailConfirmed = false,
-            IsActive = true
-        };
-
-        try
-        {
-            await db.Users.AddAsync(user, cancellationToken);
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error while registering user with email {Email}", request.Email);
-            
-            return Result<RegisterUserResponse>.Failure("Internal error occurred.", 
-                ErrorType.ServerError).ToIResult();
+            return Result<ResendEmailConfirmationResponse>.Failure(
+                "Users with this email already confirmed email.", ErrorType.BadRequest).ToIResult();
         }
         
         var token = tokenService.CreateToken(
@@ -86,14 +69,14 @@ public class RegisterUserEndpoint : IEndpoint
 
         await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
         
-        return Result<RegisterUserResponse>.Success(new RegisterUserResponse
+        return Result<ResendEmailConfirmationResponse>.Success(new ResendEmailConfirmationResponse
         {
             Message = "Account created successfully. Please check your email to verify your account."
         }).ToIResult();
     }
 }
 
-public class RegisterUserResponse
+public class ResendEmailConfirmationResponse
 {
-    public string Message { get; set; }
+    public string Message { get; set; } = null!;
 }

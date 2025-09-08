@@ -1,8 +1,9 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -15,28 +16,28 @@ public class ConfirmEmailEndpoint : IEndpoint
         .WithSummary("Confirms email.");
     
     public static async Task<Result<ConfirmEmailResponse>> Handle(
-        ConfirmEmailRequest request,
-        RenuMateDbContext db,
-        ITokenService tokenService,
-        ILogger<ConfirmEmailEndpoint> logger,
-        IValidator<ConfirmEmailRequest> validator,
+        [FromQuery] string token,
+        [FromServices] RenuMateDbContext db,
+        [FromServices] ITokenService tokenService,
+        [FromServices] ILogger<ConfirmEmailEndpoint> logger,
+        [FromServices] IValidator<string> validator,
         CancellationToken cancellationToken = default)
     {
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var validation = await validator.ValidateAsync(token, cancellationToken);
         
         if (!validation.IsValid)
         {
             return validation.ToFailureResult<ConfirmEmailResponse>();
         }
 
-        var principal = tokenService.ValidateToken(request.Token, expectedPurpose: "ConfirmEmail");
+        var principal = tokenService.ValidateToken(token, expectedPurpose: "ConfirmEmail");
         
         if (principal == null)
         {
             return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
         }
 
-        var stringUserId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {
