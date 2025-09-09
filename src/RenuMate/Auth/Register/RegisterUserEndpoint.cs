@@ -9,7 +9,7 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.Register;
 
-public class RegisterUserEndpoint : IEndpoint
+public abstract class RegisterUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/register", Handle)
@@ -30,15 +30,14 @@ public class RegisterUserEndpoint : IEndpoint
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<RegisterUserResponse>().ToIResult();
+            return validation.ToFailureResult();
         }
         
         var userExists = await db.Users.AnyAsync(u => u.Email == request.Email, cancellationToken);
 
         if (userExists)
         {
-            return Result<RegisterUserResponse>.Failure("User with this email already registered.", 
-                ErrorType.BadRequest).ToIResult();
+            return Results.BadRequest("User with this email already registered.");
         }
 
         var hashedPassword = passwordHasher.HashPassword(request.Password);
@@ -61,9 +60,8 @@ public class RegisterUserEndpoint : IEndpoint
         catch (Exception ex)
         {
             logger.LogError(ex, "Error while registering user with email {Email}", request.Email);
-            
-            return Result<RegisterUserResponse>.Failure("Internal error occurred.", 
-                ErrorType.ServerError).ToIResult();
+
+            return Results.InternalServerError("An internal error occurred.");
         }
         
         var token = tokenService.CreateToken(
@@ -86,10 +84,10 @@ public class RegisterUserEndpoint : IEndpoint
 
         await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
         
-        return Result<RegisterUserResponse>.Success(new RegisterUserResponse
+        return Results.Ok(new RegisterUserResponse
         {
             Message = "Account created successfully. Please check your email to verify your account."
-        }).ToIResult();
+        });
     }
 }
 

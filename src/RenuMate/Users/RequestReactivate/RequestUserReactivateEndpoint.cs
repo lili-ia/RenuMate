@@ -14,7 +14,7 @@ public class RequestUserReactivateEndpoint : IEndpoint
         .MapPost("api/users/reactivate-request", Handle)
         .WithSummary("Requests user account reactivation.");
 
-    public static async Task<Result<ReactivateRequestResponse>> Handle(
+    private static async Task<IResult> Handle(
         [FromBody] ReactivateRequest request, 
         [FromServices] RenuMateDbContext db,
         [FromServices] ITokenService tokenService,
@@ -27,14 +27,14 @@ public class RequestUserReactivateEndpoint : IEndpoint
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<ReactivateRequestResponse>();
+            return validation.ToFailureResult();
         }
         
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
 
         if (user is null || user.IsActive)
         {
-            return Result<ReactivateRequestResponse>.Success(new ReactivateRequestResponse
+            return Results.Ok(new ReactivateRequestResponse
             {
                 Message = "If your account exists and is deactivated, a reactivation email was sent."
             });
@@ -53,7 +53,7 @@ public class RequestUserReactivateEndpoint : IEndpoint
 
         await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
 
-        return Result<ReactivateRequestResponse>.Success(new ReactivateRequestResponse
+        return Results.Ok(new ReactivateRequestResponse
         {
             Message = "If your account exists and is deactivated, a reactivation email was sent."
         });

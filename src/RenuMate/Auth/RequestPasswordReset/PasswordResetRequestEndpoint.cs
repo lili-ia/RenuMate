@@ -14,7 +14,7 @@ public class PasswordResetRequestEndpoint : IEndpoint
         .MapPost("api/auth/recover-password-request", Handle)
         .WithSummary("Requests a password recover for user.");
 
-    public static async Task<Result<PasswordResetRequestResponse>> Handle(
+    private static async Task<IResult> Handle(
         [FromBody] PasswordResetRequest request,
         [FromServices] RenuMateDbContext db,
         [FromServices] IConfiguration configuration,
@@ -27,14 +27,14 @@ public class PasswordResetRequestEndpoint : IEndpoint
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<PasswordResetRequestResponse>();
+            return validation.ToFailureResult();
         }
         
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
         
         if (user is null)
         {
-            return Result<PasswordResetRequestResponse>.Success(new PasswordResetRequestResponse
+            return Results.Ok(new PasswordResetRequestResponse
             {
                 Message = "If an account exists, a password reset email was sent."
             });
@@ -67,7 +67,7 @@ public class PasswordResetRequestEndpoint : IEndpoint
         
         await emailSender.SendEmailAsync(user.Email, "Password Reset", body);
         
-        return Result<PasswordResetRequestResponse>.Success(new PasswordResetRequestResponse
+        return Results.Ok(new PasswordResetRequestResponse
         {
             Message = "If an account exists, a password reset email was sent."
         });

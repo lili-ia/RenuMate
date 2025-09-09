@@ -13,7 +13,7 @@ public class DeactivateUserEndpoint : IEndpoint
         .WithSummary("Deactivates user account.")
         .RequireAuthorization();
 
-    public static async Task<Result<DeactivateUserResponse>> Handle(
+    private static async Task<IResult> Handle(
         [FromServices] RenuMateDbContext db,
         [FromServices] IUserContext userContext,
         CancellationToken cancellationToken = default)
@@ -22,7 +22,7 @@ public class DeactivateUserEndpoint : IEndpoint
 
         if (userId == Guid.Empty)
         {
-            return Result<DeactivateUserResponse>.Failure("Unauthorized.", ErrorType.Unauthorized);
+            return Results.Unauthorized();
         }
         
         try
@@ -34,17 +34,22 @@ public class DeactivateUserEndpoint : IEndpoint
             
             if (rows == 0)
             {
-                return Result<DeactivateUserResponse>.Failure("User not found.", ErrorType.NotFound);
+                return Results.NotFound("User not found.");
             }
          
-            return Result<DeactivateUserResponse>.Success(new DeactivateUserResponse
+            return Results.Ok(new DeactivateUserResponse
             {
                 Message = "Your account was successfully deactivated."
             });
         }
         catch (Exception ex)
         {
-            return Result<DeactivateUserResponse>.Failure("An internal error occurred.", ErrorType.ServerError);
+            return Results.InternalServerError("An internal error occurred.");
         }
     }
+}
+
+public class DeactivateUserResponse
+{
+    public string Message { get; set; } = null!;
 }

@@ -4,7 +4,7 @@ namespace RenuMate.Users.Reactivate;
 
 public class ReactivateUserRequest
 {
-    public string Token { get; set; }
+    public string Token { get; set; } = null!;
 }
 
 public class ReactivateUserRequestValidator : AbstractValidator<ReactivateUserRequest>

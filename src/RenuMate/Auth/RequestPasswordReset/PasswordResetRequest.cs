@@ -4,7 +4,7 @@ namespace RenuMate.Auth.RequestPasswordReset;
 
 public class PasswordResetRequest
 {
-    public string Email { get; set; }
+    public string Email { get; set; } = null!;
 }
 
 public class PasswordResetRequestValidator : AbstractValidator<PasswordResetRequest>

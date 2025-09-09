@@ -15,7 +15,7 @@ public class ResetPasswordEndpoint : IEndpoint
         .MapPost("api/auth/reset-password", Handle)
         .WithSummary("Resets password.");
 
-    public static async Task<Result<ResetPasswordResponse>> Handle(
+    private static async Task<IResult> Handle(
         [FromQuery] string token,
         [FromBody] ResetPasswordRequest request, 
         [FromServices] ITokenService tokenService,
@@ -31,36 +31,37 @@ public class ResetPasswordEndpoint : IEndpoint
         
         if (!requestValidation.IsValid)
         {
-            return requestValidation.ToFailureResult<ResetPasswordResponse>();
+            return requestValidation.ToFailureResult();
         }
         
         var tokenValidation = await requestValidator.ValidateAsync(request, cancellationToken);
         
         if (!tokenValidation.IsValid)
         {
-            return tokenValidation.ToFailureResult<ResetPasswordResponse>();
+            return tokenValidation.ToFailureResult();
         }
         
         var principal = tokenService.ValidateToken(token, expectedPurpose: "ConfirmEmail");
         
         if (principal == null)
         {
-            return Result<ResetPasswordResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
 
         var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {
-            return Result<ResetPasswordResponse>.Failure("Invalid token.", ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
         {
-            return Result<ResetPasswordResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
+        
         
         var newHashedPassword = passwordHasher.HashPassword(request.NewPassword);
         
@@ -75,7 +76,7 @@ public class ResetPasswordEndpoint : IEndpoint
                 purpose: "Access",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
-            return Result<ResetPasswordResponse>.Success(new ResetPasswordResponse
+            return Results.Ok(new ResetPasswordResponse
             {
                 Token = accessToken
             });
@@ -84,7 +85,8 @@ public class ResetPasswordEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while resetting password for user {UserId}.", user.Id);
 
-            return Result<ResetPasswordResponse>.Failure("Invalid or expired token.");
+            return Results.InternalServerError("An internal error occurred.");;
+            return Results.InternalServerError("An internal error occurred.");;
         }
     }
 }

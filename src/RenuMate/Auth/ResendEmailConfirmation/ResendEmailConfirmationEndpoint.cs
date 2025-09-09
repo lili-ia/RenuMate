@@ -30,7 +30,7 @@ public class ResendEmailConfirmationEndpoint : IEndpoint
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<ResendEmailConfirmationResponse>().ToIResult();
+            return validation.ToFailureResult();
         }
         
         var user = await db.Users
@@ -39,14 +39,12 @@ public class ResendEmailConfirmationEndpoint : IEndpoint
 
         if (user is null)
         {
-            return Result<ResendEmailConfirmationResponse>.Failure(
-                "User not found.", ErrorType.NotFound).ToIResult();
+            return Results.NotFound("User not found.");
         }
         
         if (user.IsEmailConfirmed)
         {
-            return Result<ResendEmailConfirmationResponse>.Failure(
-                "Users with this email already confirmed email.", ErrorType.BadRequest).ToIResult();
+            return Results.BadRequest("Users with this email already confirmed email.");
         }
         
         var token = tokenService.CreateToken(
@@ -69,10 +67,10 @@ public class ResendEmailConfirmationEndpoint : IEndpoint
 
         await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
         
-        return Result<ResendEmailConfirmationResponse>.Success(new ResendEmailConfirmationResponse
+        return Results.Ok(new ResendEmailConfirmationResponse
         {
             Message = "Account created successfully. Please check your email to verify your account."
-        }).ToIResult();
+        });
     }
 }
 

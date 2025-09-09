@@ -14,8 +14,8 @@ public class ConfirmEmailEndpoint : IEndpoint
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/auth/confirm-email", Handle)
         .WithSummary("Confirms email.");
-    
-    public static async Task<Result<ConfirmEmailResponse>> Handle(
+
+    private static async Task<IResult> Handle(
         [FromQuery] string token,
         [FromServices] RenuMateDbContext db,
         [FromServices] ITokenService tokenService,
@@ -27,28 +27,28 @@ public class ConfirmEmailEndpoint : IEndpoint
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<ConfirmEmailResponse>();
+            return validation.ToFailureResult();
         }
 
         var principal = tokenService.ValidateToken(token, expectedPurpose: "ConfirmEmail");
         
         if (principal == null)
         {
-            return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
 
         var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {
-            return Result<ConfirmEmailResponse>.Failure("Invalid token.", ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null || user.IsEmailConfirmed)
         {
-            return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
 
         user.IsEmailConfirmed = true;
@@ -63,7 +63,7 @@ public class ConfirmEmailEndpoint : IEndpoint
                 purpose: "Access",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
-            return Result<ConfirmEmailResponse>.Success(new ConfirmEmailResponse
+            return Results.Ok(new ConfirmEmailResponse
             {
                 Message = "Email confirmed successfully.",
                 Token = accessToken
@@ -73,7 +73,7 @@ public class ConfirmEmailEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while confirming email for user {UserId}", userId);
             
-            return Result<ConfirmEmailResponse>.Failure("Invalid or expired token.");
+            return Results.BadRequest("Invalid or expired token.");
         }
     }
 }

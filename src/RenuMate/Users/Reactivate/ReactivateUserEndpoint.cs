@@ -15,7 +15,7 @@ public class ReactivateUserEndpoint : IEndpoint
         .MapPost("api/users/reactivate", Handle)
         .WithSummary("Reactivates user account.");
 
-    public static async Task<Result<ReactivateUserResponse>> Handle(
+    private static async Task<IResult> Handle(
         [FromQuery] string token,
         [FromServices] IValidator<string> validator,
         [FromServices] ITokenService tokenService,
@@ -27,35 +27,33 @@ public class ReactivateUserEndpoint : IEndpoint
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<ReactivateUserResponse>();
+            return validation.ToFailureResult();
         }
 
         var principal = tokenService.ValidateToken(token, expectedPurpose: "Reactivate");
         
         if (principal == null)
         {
-            return Result<ReactivateUserResponse>.Failure("Invalid or expired token.", ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
 
         var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {
-            return Result<ReactivateUserResponse>.Failure("Invalid token.", ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
         {
-            return Result<ReactivateUserResponse>.Failure("Invalid or expired token.", 
-                ErrorType.BadRequest);
+            return Results.BadRequest("Invalid or expired token.");
         }
 
         if (user.IsActive)
         {
-            return Result<ReactivateUserResponse>.Failure("Your account is already active.", 
-                ErrorType.Conflict);
+            return Results.Conflict("Your account is already active.");
         }
         
         user.IsActive = true;
@@ -70,7 +68,7 @@ public class ReactivateUserEndpoint : IEndpoint
                 purpose: "Reactivate",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
-            return Result<ReactivateUserResponse>.Success(new ReactivateUserResponse
+            return Results.Ok(new ReactivateUserResponse
             {
                 Token = accessToken
             });
@@ -79,7 +77,7 @@ public class ReactivateUserEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while reactivating user with {UserId}", user.Id);
             
-            return Result<ReactivateUserResponse>.Failure("Invalid or expired token.");
+            return Results.InternalServerError("An internal error occurred.");
         }
     }
 }

@@ -14,7 +14,7 @@ public class LoginUserEndpoint : IEndpoint
         .MapPost("api/auth/login", Handle)
         .WithSummary("Logs new user in.");
 
-    public static async Task<Result<LoginUserResponse>> Handle(
+    private static async Task<IResult> Handle(
         [FromBody] LoginUserRequest request,
         [FromServices] RenuMateDbContext db,
         [FromServices] IPasswordHasher passwordHasher,
@@ -27,7 +27,7 @@ public class LoginUserEndpoint : IEndpoint
         
         if (!validation.IsValid)
         {
-            return validation.ToFailureResult<LoginUserResponse>();
+            return validation.ToFailureResult();
         }
         
         var user = await db.Users
@@ -36,21 +36,20 @@ public class LoginUserEndpoint : IEndpoint
 
         if (user is null)
         {
-            return Result<LoginUserResponse>.Failure("Invalid email or password.", ErrorType.Unauthorized);
+            return Results.Problem(detail: "Invalid email or password.", statusCode: 401);
         }
         
         var passwordValid = passwordHasher.VerifyHashedPassword(request.Password, user.PasswordHash);
         
         if (!passwordValid)
         {
-            return Result<LoginUserResponse>.Failure("Invalid email or password.", ErrorType.Unauthorized);
+            return Results.Problem(detail: "Invalid email or password.", statusCode: 401);
         }
 
         if (!user.IsActive)
         {
-            return Result<LoginUserResponse>.Failure(
-                "Your account is deactivated. Please reactivate to log in.", ErrorType.Unauthorized 
-            );
+            return Results.Problem(
+                detail: "Your account is deactivated. Please reactivate to log in.", statusCode: 401);
         }
         
         var token = tokenService.CreateToken(
@@ -59,7 +58,7 @@ public class LoginUserEndpoint : IEndpoint
             purpose: "Access",
             expiresAt: DateTime.UtcNow.AddHours(24));
         
-        return Result<LoginUserResponse>.Success(new LoginUserResponse
+        return Results.Ok(new LoginUserResponse
         {
             AccessToken = token
         });
