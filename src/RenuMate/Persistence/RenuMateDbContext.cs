@@ -20,11 +20,15 @@ public class RenuMateDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
     
     public virtual DbSet<Subscription> Subscriptions { get; set; }
+    
+    public virtual DbSet<Reminder> Reminders { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
         {
+            entity.ToTable("Users");
+            
             entity.HasKey(e => e.Id);
             
             entity.HasIndex(e => e.Email)
@@ -40,13 +44,23 @@ public class RenuMateDbContext : DbContext
 
         modelBuilder.Entity<Subscription>(entity =>
         {
+            entity.ToTable("Subscriptions");
+            
             entity.HasKey(e => e.Id);
+            
+            entity.HasIndex(r => r.UserId);
             
             entity.Property(e => e.Name)
                 .IsRequired()
                 .HasMaxLength(100);
+
+            entity.Property(e => e.Type)
+                .HasConversion<string>()
+                .HasMaxLength(50)
+                .HasDefaultValue(SubscriptionType.Monthly);
             
             entity.Property(e => e.Currency)
+                .HasConversion<string>()
                 .HasMaxLength(10)
                 .HasDefaultValue(Currency.USD);
             
@@ -63,13 +77,17 @@ public class RenuMateDbContext : DbContext
         
         modelBuilder.Entity<Reminder>(entity =>
         {
+            entity.ToTable("Reminders");
+            
             entity.HasKey(e => e.Id);
             
-            entity.HasIndex(r => new { r.SubscriptionId, r.ReminderDate });
-
-            entity.Property(r => r.IsSent)
+            entity.Property(r => r.DaysBeforeRenewal)
                 .IsRequired()
-                .HasDefaultValue(false);
+                .HasDefaultValue(1);
+            
+            entity.Property(r => r.NotifyTime)
+                .IsRequired()
+                .HasDefaultValue(new TimeSpan(9, 0, 0));
 
             entity.Property(r => r.IsMuted)
                 .IsRequired()

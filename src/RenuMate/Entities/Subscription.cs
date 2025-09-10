@@ -6,7 +6,9 @@ public class Subscription : BaseEntity
 {
     public string Name { get; set; } = null!;
     
-    public string Type { get; set; } = null!;
+    public SubscriptionType Type { get; set; }
+    
+    public int? CustomPeriodInDays { get; set; }
     
     public DateTime StartDate { get; set; }
     

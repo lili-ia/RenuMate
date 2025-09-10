@@ -6,9 +6,9 @@ public class Reminder : BaseEntity
     
     public Subscription Subscription { get; set; } = null!;
 
-    public DateTime ReminderDate { get; set; }
+    public int DaysBeforeRenewal { get; set; }  
     
-    public bool IsSent { get; set; } = false;
+    public TimeSpan NotifyTime { get; set; } 
     
     public bool IsMuted { get; set; } = false;
 }
