@@ -1,0 +1,14 @@
+namespace RenuMate.Subscriptions.Create;
+
+public class CreateSubscriptionResponse
+{
+    public Guid Id { get; set; }
+    
+    public string Name { get; set; } = null!;
+    
+    public DateTime RenewalDate { get; set; }
+
+    public string Cost { get; set; } = null!;
+    
+    public string? Note { get; set; }
+}

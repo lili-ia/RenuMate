@@ -3,6 +3,11 @@ using RenuMate.Auth.Login;
 using RenuMate.Auth.Register;
 using RenuMate.Auth.RequestPasswordReset;
 using RenuMate.Auth.ResetPassword;
+using RenuMate.Subscriptions.Create;
+using RenuMate.Subscriptions.Delete;
+using RenuMate.Subscriptions.GetAllForUser;
+using RenuMate.Subscriptions.GetDetailsById;
+using RenuMate.Subscriptions.Update;
 using RenuMate.Users.Deactivate;
 using RenuMate.Users.Reactivate;
 using RenuMate.Users.RequestReactivate;
@@ -22,5 +27,11 @@ public static class EndpointExtensions
         DeactivateUserEndpoint.Map(app);
         ReactivateUserEndpoint.Map(app);
         RequestUserReactivateEndpoint.Map(app);
+
+        CreateSubscriptionEndpoint.Map(app);
+        UpdateSubscriptionEndpoint.Map(app);
+        DeleteSubscriptionEndpoint.Map(app);
+        GetSubscriptionDetailsByIdEndpoint.Map(app);
+        GetAllSubscriptionsForUserEndpoint.Map(app);
     }
 }
