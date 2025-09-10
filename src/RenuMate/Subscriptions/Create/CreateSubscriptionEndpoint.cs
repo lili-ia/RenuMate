@@ -14,7 +14,7 @@ public class CreateSubscriptionEndpoint : IEndpoint
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapPost("api/subscriptions", Handle);
 
-    public async static Task<IResult> Handle(
+    private static async Task<IResult> Handle(
         [FromBody] CreateSubscriptionRequest request,
         [FromServices] IUserContext userContext,
         [FromServices] IValidator<CreateSubscriptionRequest> validator,

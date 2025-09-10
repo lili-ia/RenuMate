@@ -5,7 +5,6 @@ using RenuMate.Enums;
 using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
-using RenuMate.Subscriptions.Create;
 
 namespace RenuMate.Subscriptions.Update;
 
@@ -42,6 +41,11 @@ public class UpdateSubscriptionEndpoint : IEndpoint
         if (subscription is null)
         {
             return Results.NotFound("Subscription not found.");
+        }
+
+        if (subscription.UserId != userId)
+        {
+            return Results.Forbid();
         }
         
         Enum.TryParse<SubscriptionType>(request.Type, true, out var type);
