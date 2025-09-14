@@ -10,5 +10,7 @@ public class Reminder : BaseEntity
     
     public TimeSpan NotifyTime { get; set; } 
     
+    public DateTime NextReminder { get; set; }
+    
     public bool IsMuted { get; set; } = false;
 }

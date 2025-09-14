@@ -48,6 +48,23 @@ public class CreateReminderEndpoint : IEndpoint
             return Results.NotFound("Subscription not found.");
         }
 
+        var nextReminder = subscription.RenewalDate
+            .AddDays(-request.DaysBeforeRenewal)
+            .Add(request.NotifyTime);
+            
+        while (nextReminder <= DateTime.UtcNow)
+        {
+            nextReminder = subscription.Type switch
+            {
+                SubscriptionType.Monthly => nextReminder.AddMonths(1),
+                SubscriptionType.Quarterly => nextReminder.AddMonths(3),
+                SubscriptionType.Annual => nextReminder.AddYears(1),
+                SubscriptionType.Custom when subscription.CustomPeriodInDays.HasValue 
+                    => nextReminder.AddDays(subscription.CustomPeriodInDays.Value),
+                _ => throw new InvalidOperationException("Unknown subscription type")
+            };
+        }
+        
         var reminder = new Reminder
         {
             Id = Guid.NewGuid(),
@@ -55,30 +72,14 @@ public class CreateReminderEndpoint : IEndpoint
             SubscriptionId = subscriptionId,
             DaysBeforeRenewal = request.DaysBeforeRenewal,
             NotifyTime = request.NotifyTime,
-            IsMuted = false
+            IsMuted = false,
+            NextReminder = nextReminder
         };
         
         try
         {
             await db.Reminders.AddAsync(reminder, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
-
-            var nextReminder = subscription.RenewalDate
-                .AddDays(-reminder.DaysBeforeRenewal)
-                .Add(reminder.NotifyTime);
-            
-            while (nextReminder <= DateTime.UtcNow)
-            {
-                nextReminder = subscription.Type switch
-                {
-                    SubscriptionType.Monthly => nextReminder.AddMonths(1),
-                    SubscriptionType.Quarterly => nextReminder.AddMonths(3),
-                    SubscriptionType.Annual => nextReminder.AddYears(1),
-                    SubscriptionType.Custom when subscription.CustomPeriodInDays.HasValue 
-                        => nextReminder.AddDays(subscription.CustomPeriodInDays.Value),
-                    _ => throw new InvalidOperationException("Unknown subscription type")
-                };
-            }
             
             return Results.Ok(new CreateReminderResponse
             {
