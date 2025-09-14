@@ -1,4 +1,6 @@
 using RenuMate.Enums;
+using RenuMate.Events;
+using RenuMate.Extensions;
 
 namespace RenuMate.Entities;
 
@@ -25,4 +27,20 @@ public class Subscription : BaseEntity
     public User User { get; set; } = null!;
     
     public ICollection<Reminder> Reminders { get; set; }
+
+
+    private readonly List<object> _domainEvents = [];
+
+    public IReadOnlyCollection<object> DomainEvents => _domainEvents.AsReadOnly();
+
+    public void AddDomainEvent(object eventItem) => _domainEvents.Add(eventItem);
+
+    public void ClearDomainEvents() => _domainEvents.Clear();
+
+    public void Renew()
+    {
+        RenewalDate = RenewalDate.AddPeriod(Type, CustomPeriodInDays);
+
+        AddDomainEvent(new SubscriptionRenewedEvent(this));
+    }
 }
