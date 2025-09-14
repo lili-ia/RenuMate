@@ -11,6 +11,8 @@ using RenuMate.Services.Contracts;
 using RenuMate.Services.Email;
 using IEmailSender = RenuMate.Services.Contracts.IEmailSender;
 using FluentValidation;
+using Hangfire;
+using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +65,11 @@ builder.Services.AddScoped<IUserContext, UserContext>();
 builder.Services.AddTransient<IPasswordHasher, PasswordHasher>();
 builder.Services.AddTransient<ITokenService, TokenService>();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddTransient<IReminderService, ReminderService>();
+
+builder.Services.AddHangfire(config =>
+    config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("HangfireConnection")));
+builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
@@ -78,5 +85,19 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapEndpoints();
+app.MapHangfireDashboard();
+
+RecurringJob.AddOrUpdate<ISubscriptionService>(
+    "process-subscription-renewals",
+    service => service.ProcessSubscriptionRenewalAsync(CancellationToken.None), 
+    "0 2 * * *");
+
+RecurringJob.AddOrUpdate<IReminderService>(
+    "process-reminders",
+    service => service.ProcessDueRemindersAsync(),
+    Cron.Minutely);
+
+var now = DateTime.UtcNow;
+Console.WriteLine(now);
 
 app.Run();
