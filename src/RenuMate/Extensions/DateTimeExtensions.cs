@@ -4,23 +4,23 @@ namespace RenuMate.Extensions;
 
 public static class DateTimeExtensions
 {
-    public static DateTime AddPeriod(this DateTime date, SubscriptionType subscriptionType, int? customDays = null)
+    public static DateTime AddPeriod(this DateTime date, SubscriptionPlan subscriptionPlan, int? customDays = null)
     {
-        return subscriptionType switch
+        return subscriptionPlan switch
         {
-            SubscriptionType.Custom when customDays.HasValue 
+            SubscriptionPlan.Custom when customDays.HasValue 
                 => date.AddDays(customDays.Value),
 
-            SubscriptionType.Monthly 
+            SubscriptionPlan.Monthly 
                 => date.AddMonths(1),
 
-            SubscriptionType.Quarterly 
+            SubscriptionPlan.Quarterly 
                 => date.AddMonths(3),
 
-            SubscriptionType.Annual 
+            SubscriptionPlan.Annual 
                 => date.AddYears(1),
 
-            _ => throw new ArgumentOutOfRangeException(nameof(subscriptionType), subscriptionType, null)
+            _ => throw new ArgumentOutOfRangeException(nameof(subscriptionPlan), subscriptionPlan, null)
         };
     }
 }

@@ -6,7 +6,7 @@ public class SubscriptionDto
 {
     public string Name { get; set; } = null!;
     
-    public SubscriptionType Type { get; set; }
+    public SubscriptionPlan Plan { get; set; }
     
     public int? CustomPeriodInDays { get; set; }
     
@@ -21,4 +21,6 @@ public class SubscriptionDto
     public Currency Currency { get; set; }
     
     public string? Note { get; set; }
+    
+    public string? CancelLink { get; set; }
 }

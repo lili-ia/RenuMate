@@ -54,10 +54,10 @@ public class RenuMateDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(100);
 
-            entity.Property(e => e.Type)
+            entity.Property(e => e.Plan)
                 .HasConversion<string>()
                 .HasMaxLength(50)
-                .HasDefaultValue(SubscriptionType.Monthly);
+                .HasDefaultValue(SubscriptionPlan.Monthly);
             
             entity.Property(e => e.Currency)
                 .HasConversion<string>()

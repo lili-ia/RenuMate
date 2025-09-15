@@ -54,14 +54,14 @@ public class CreateReminderEndpoint : IEndpoint
             
         while (nextReminder <= DateTime.UtcNow)
         {
-            nextReminder = subscription.Type switch
+            nextReminder = subscription.Plan switch
             {
-                SubscriptionType.Monthly => nextReminder.AddMonths(1),
-                SubscriptionType.Quarterly => nextReminder.AddMonths(3),
-                SubscriptionType.Annual => nextReminder.AddYears(1),
-                SubscriptionType.Custom when subscription.CustomPeriodInDays.HasValue 
+                SubscriptionPlan.Monthly => nextReminder.AddMonths(1),
+                SubscriptionPlan.Quarterly => nextReminder.AddMonths(3),
+                SubscriptionPlan.Annual => nextReminder.AddYears(1),
+                SubscriptionPlan.Custom when subscription.CustomPeriodInDays.HasValue 
                     => nextReminder.AddDays(subscription.CustomPeriodInDays.Value),
-                _ => throw new InvalidOperationException("Unknown subscription type")
+                _ => throw new InvalidOperationException("Unknown subscription plan")
             };
         }
         

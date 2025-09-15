@@ -38,7 +38,7 @@ public class ReminderService : IReminderService
             {
                 var period = subscription.CustomPeriodInDays.HasValue
                     ? $"{subscription.CustomPeriodInDays.Value} days"
-                    : subscription.Type.ToString();
+                    : subscription.Plan.ToString();
 
                 var note = string.IsNullOrWhiteSpace(subscription.Note)
                     ? "No additional notes"
@@ -51,7 +51,7 @@ public class ReminderService : IReminderService
                     This is a friendly reminder about your subscription <strong>{subscription.Name}</strong>.</p>
                     <p>Subscription details:</p>
                     <ul>
-                        <li>Type: {subscription.Type}</li>
+                        <li>Plan: {subscription.Plan}</li>
                         <li>Start Date: {subscription.StartDate:dd.MM.yyyy}</li>
                         <li>Renewal Date: {subscription.RenewalDate:dd.MM.yyyy}</li>
                         <li>Cost: {subscription.Cost} {subscription.Currency}</li>

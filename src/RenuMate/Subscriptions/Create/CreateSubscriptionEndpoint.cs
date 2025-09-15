@@ -36,7 +36,7 @@ public class CreateSubscriptionEndpoint : IEndpoint
             return validation.ToFailureResult();
         }
 
-        Enum.TryParse<SubscriptionType>(request.Type, true, out var type);
+        Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var plan);
         Enum.TryParse<Currency>(request.Currency, true, out var currency);
 
         var subscription = new Subscription
@@ -44,28 +44,29 @@ public class CreateSubscriptionEndpoint : IEndpoint
             Id = Guid.NewGuid(),
             CreatedAt = DateTime.UtcNow,
             Name = request.Name,
-            Type = type,
+            Plan = plan,
             CustomPeriodInDays = request.CustomPeriodInDays,
             StartDate = request.StartDate,
             Cost = request.Cost,
             Currency = currency,
             Note = request.Note,
+            CancelLink = request.CancelLink,
             UserId = userId
         };
         
         var renewalDate = new DateTime();
-        switch (type)
+        switch (plan)
         {
-            case SubscriptionType.Monthly:
+            case SubscriptionPlan.Monthly:
                 renewalDate = request.StartDate.AddMonths(1);
                 break;
-            case SubscriptionType.Quarterly:
+            case SubscriptionPlan.Quarterly:
                 renewalDate = request.StartDate.AddMonths(3);
                 break;
-            case SubscriptionType.Annual:
+            case SubscriptionPlan.Annual:
                 renewalDate = request.StartDate.AddYears(1);
                 break;
-            case SubscriptionType.Custom when request.CustomPeriodInDays.HasValue:
+            case SubscriptionPlan.Custom when request.CustomPeriodInDays.HasValue:
                 renewalDate = request.StartDate.AddDays(request.CustomPeriodInDays.Value);
                 break;
         }
@@ -94,7 +95,8 @@ public class CreateSubscriptionEndpoint : IEndpoint
                 Name = subscription.Name,
                 RenewalDate = subscription.RenewalDate,
                 Cost = $"{subscription.Cost}{subscription.Currency}",
-                Note = subscription.Note
+                Note = subscription.Note,
+                CancelLink = subscription.CancelLink
             });
         }
         catch (Exception ex)

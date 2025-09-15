@@ -10,7 +10,7 @@ public static class SubscriptionMapper
         new SubscriptionDto
         {
             Name = subscription.Name,
-            Type = subscription.Type,
+            Plan = subscription.Plan,
             CustomPeriodInDays = subscription.CustomPeriodInDays,
             StartDate = subscription.StartDate,
             RenewalDate = subscription.RenewalDate,
@@ -23,13 +23,14 @@ public static class SubscriptionMapper
         new SubscriptionDetailsDto
         {
             Name = subscription.Name,
-            Type = subscription.Type,
+            Plan = subscription.Plan,
             CustomPeriodInDays = subscription.CustomPeriodInDays,
             StartDate = subscription.StartDate,
             RenewalDate = subscription.RenewalDate,
             Cost = subscription.Cost,
             Currency = subscription.Currency,
             Note = subscription.Note,
+            CancelLink = subscription.CancelLink,
             Reminders = subscription.Reminders
                 .Select(r => new ReminderDto
                 {

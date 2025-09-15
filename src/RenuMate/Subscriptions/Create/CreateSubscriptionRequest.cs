@@ -4,7 +4,7 @@ public class CreateSubscriptionRequest
 {
     public string Name { get; set; } = null!;
 
-    public string Type { get; set; } = null!;
+    public string Plan { get; set; } = null!;
     
     public int? CustomPeriodInDays { get; set; }
     
@@ -15,4 +15,6 @@ public class CreateSubscriptionRequest
     public string Currency { get; set; } = null!;
     
     public string? Note { get; set; }
+    
+    public string? CancelLink { get; set; }
 }

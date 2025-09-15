@@ -48,34 +48,35 @@ public class UpdateSubscriptionEndpoint : IEndpoint
             return Results.Forbid();
         }
         
-        Enum.TryParse<SubscriptionType>(request.Type, true, out var type);
+        Enum.TryParse<SubscriptionPlan>(request.Type, true, out var type);
         Enum.TryParse<Currency>(request.Currency, true, out var currency);
         
         var renewalDate = new DateTime();
         switch (type)
         {
-            case SubscriptionType.Monthly:
+            case SubscriptionPlan.Monthly:
                 renewalDate = request.StartDate.AddMonths(1);
                 break;
-            case SubscriptionType.Quarterly:
+            case SubscriptionPlan.Quarterly:
                 renewalDate = request.StartDate.AddMonths(3);
                 break;
-            case SubscriptionType.Annual:
+            case SubscriptionPlan.Annual:
                 renewalDate = request.StartDate.AddYears(1);
                 break;
-            case SubscriptionType.Custom when request.CustomPeriodInDays.HasValue:
+            case SubscriptionPlan.Custom when request.CustomPeriodInDays.HasValue:
                 renewalDate = request.StartDate.AddDays(request.CustomPeriodInDays.Value);
                 break;
         }
 
         subscription.Name = request.Name;
-        subscription.Type = type;
+        subscription.Plan = type;
         subscription.CustomPeriodInDays = request.CustomPeriodInDays;
         subscription.StartDate = request.StartDate;
         subscription.RenewalDate = renewalDate;
         subscription.Cost = request.Cost;
         subscription.Currency = currency;
         subscription.Note = request.Note;
+        subscription.CancelLink = request.CancelLink;
         
         try
         {

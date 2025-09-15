@@ -12,16 +12,16 @@ public class UpdateSubscriptionRequestValidator : AbstractValidator<UpdateSubscr
             .MaximumLength(100).WithMessage("Subscription name must not exceed 100 characters.");
 
         RuleFor(x => x.Type)
-            .NotEmpty().WithMessage("Subscription type is required.")
-            .Must(type => Enum.TryParse<SubscriptionType>(type, true, out _))
-            .WithMessage("Invalid subscription type.");
+            .NotEmpty().WithMessage("Subscription plan is required.")
+            .Must(type => Enum.TryParse<SubscriptionPlan>(type, true, out _))
+            .WithMessage("Invalid subscription plan.");
 
         RuleFor(x => x.CustomPeriodInDays)
             .GreaterThan(0)
-            .When(x => x.Type.Equals(nameof(SubscriptionType.Custom), StringComparison.OrdinalIgnoreCase))
+            .When(x => x.Type.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
             .WithMessage("Custom period must be greater than zero for custom subscriptions.")
             .Null()
-            .When(x => !x.Type.Equals(nameof(SubscriptionType.Custom), StringComparison.OrdinalIgnoreCase))
+            .When(x => !x.Type.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
             .WithMessage("Custom period should only be set for custom subscriptions.");
 
         RuleFor(x => x.StartDate)
@@ -39,5 +39,9 @@ public class UpdateSubscriptionRequestValidator : AbstractValidator<UpdateSubscr
         RuleFor(x => x.Note)
             .MaximumLength(500).WithMessage("Note cannot exceed 500 characters.")
             .When(x => !string.IsNullOrWhiteSpace(x.Note));
+        
+        RuleFor(x => x.CancelLink)
+            .Must(link => string.IsNullOrWhiteSpace(link) || Uri.IsWellFormedUriString(link, UriKind.Absolute))
+            .WithMessage("Cancel link must be a valid absolute URL if provided.");
     }
 }

@@ -8,7 +8,7 @@ public class Subscription : BaseEntity
 {
     public string Name { get; set; } = null!;
     
-    public SubscriptionType Type { get; set; }
+    public SubscriptionPlan Plan { get; set; }
     
     public int? CustomPeriodInDays { get; set; }
     
@@ -21,6 +21,8 @@ public class Subscription : BaseEntity
     public Currency Currency { get; set; }
     
     public string? Note { get; set; }
+    
+    public string? CancelLink { get; set; }
 
     public Guid UserId { get; set; }
 
@@ -39,7 +41,7 @@ public class Subscription : BaseEntity
 
     public void Renew()
     {
-        RenewalDate = RenewalDate.AddPeriod(Type, CustomPeriodInDays);
+        RenewalDate = RenewalDate.AddPeriod(Plan, CustomPeriodInDays);
 
         AddDomainEvent(new SubscriptionRenewedEvent(this));
     }

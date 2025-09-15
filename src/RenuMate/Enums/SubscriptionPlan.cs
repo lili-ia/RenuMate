@@ -1,6 +1,6 @@
 namespace RenuMate.Enums;
 
-public enum SubscriptionType
+public enum SubscriptionPlan
 {
     Custom = 0,
     Monthly = 1,

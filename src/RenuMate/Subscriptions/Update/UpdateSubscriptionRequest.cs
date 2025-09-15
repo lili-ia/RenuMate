@@ -15,4 +15,6 @@ public class UpdateSubscriptionRequest
     public string Currency { get; set; } = null!;
     
     public string? Note { get; set; }
+    
+    public string? CancelLink { get; set; }
 }

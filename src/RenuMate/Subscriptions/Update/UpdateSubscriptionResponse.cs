@@ -11,4 +11,6 @@ public class UpdateSubscriptionResponse
     public string Cost { get; set; } = null!;
     
     public string? Note { get; set; }
+    
+    public string? CancelLink { get; set; }
 }
