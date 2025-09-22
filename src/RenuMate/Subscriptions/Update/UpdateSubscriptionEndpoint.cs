@@ -88,7 +88,9 @@ public class UpdateSubscriptionEndpoint : IEndpoint
                 Name = subscription.Name,
                 RenewalDate = subscription.RenewalDate,
                 Cost = $"{subscription.Cost}{subscription.Currency}",
-                Note = subscription.Note
+                Note = subscription.Note,
+                CancelLink = subscription.CancelLink,
+                PicLink = subscription.PicLink
             });
         }
         catch (Exception ex)

@@ -23,6 +23,8 @@ public class Subscription : BaseEntity
     public string? Note { get; set; }
     
     public string? CancelLink { get; set; }
+    
+    public string? PicLink { get; set; }
 
     public Guid UserId { get; set; }
 

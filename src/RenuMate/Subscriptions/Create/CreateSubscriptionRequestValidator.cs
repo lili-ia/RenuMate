@@ -43,5 +43,9 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
         RuleFor(x => x.CancelLink)
             .Must(link => string.IsNullOrWhiteSpace(link) || Uri.IsWellFormedUriString(link, UriKind.Absolute))
             .WithMessage("Cancel link must be a valid absolute URL if provided.");
+        
+        RuleFor(x => x.PicLink)
+            .Must(link => string.IsNullOrWhiteSpace(link) || Uri.IsWellFormedUriString(link, UriKind.Absolute))
+            .WithMessage("Pic link must be a valid absolute URL if provided.");
     }
 }

@@ -16,7 +16,9 @@ public static class SubscriptionMapper
             RenewalDate = subscription.RenewalDate,
             Cost = subscription.Cost,
             Currency = subscription.Currency,
-            Note = subscription.Note
+            Note = subscription.Note,
+            CancelLink = subscription.CancelLink,
+            PicLink = subscription.PicLink
         };
     
     public static Expression<Func<Subscription, SubscriptionDto>> ProjectToDetailsDto => subscription =>
@@ -31,6 +33,7 @@ public static class SubscriptionMapper
             Currency = subscription.Currency,
             Note = subscription.Note,
             CancelLink = subscription.CancelLink,
+            PicLink = subscription.PicLink,
             Reminders = subscription.Reminders
                 .Select(r => new ReminderDto
                 {

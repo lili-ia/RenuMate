@@ -13,4 +13,6 @@ public class CreateSubscriptionResponse
     public string? Note { get; set; }
     
     public string? CancelLink { get; set; }
+    
+    public string? PicLink { get; set; }
 }
