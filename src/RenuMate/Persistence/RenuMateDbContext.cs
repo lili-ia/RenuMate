@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Entities;
 using RenuMate.Enums;
@@ -59,6 +60,10 @@ public class RenuMateDbContext : DbContext
                 .HasMaxLength(50)
                 .HasDefaultValue(SubscriptionPlan.Monthly);
             
+            entity.Property(r => r.IsMuted)
+                .IsRequired()
+                .HasDefaultValue(false);
+            
             entity.Property(e => e.Currency)
                 .HasConversion<string>()
                 .HasMaxLength(10)
@@ -75,9 +80,9 @@ public class RenuMateDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
         
-        modelBuilder.Entity<Reminder>(entity =>
+        modelBuilder.Entity<ReminderRule>(entity =>
         {
-            entity.ToTable("Reminders");
+            entity.ToTable("ReminderRules");
             
             entity.HasKey(e => e.Id);
             
@@ -89,14 +94,35 @@ public class RenuMateDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValue(new TimeSpan(9, 0, 0));
 
-            entity.Property(r => r.IsMuted)
-                .IsRequired()
-                .HasDefaultValue(false);
-
             entity.HasOne(r => r.Subscription)
                 .WithMany(s => s.Reminders) 
                 .HasForeignKey(r => r.SubscriptionId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReminderOccurrence>(entity =>
+        {
+            entity.ToTable("ReminderOccurrences");
+
+            entity.HasKey(o => o.Id);
+
+            entity.Property(o => o.ScheduledAt)
+                .IsRequired();
+
+            entity.Property(o => o.IsSent)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            entity.Property(o => o.SentAt)
+                .IsRequired(false);
+
+            entity.HasOne(o => o.ReminderRule)
+                .WithMany(r => r.ReminderOccurrences) 
+                .HasForeignKey(o => o.ReminderRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(o => o.ScheduledAt);
+            entity.HasIndex(o => new { o.ReminderRuleId, o.IsSent });
         });
     }
 }
