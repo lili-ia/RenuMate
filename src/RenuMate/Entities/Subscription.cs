@@ -13,12 +13,28 @@ public class Subscription : BaseEntity
     public int? CustomPeriodInDays { get; set; }
     
     public DateTime StartDate { get; set; }
-    
-    public DateTime RenewalDate { get; set; }
+
+    private DateTime _renewalDate;
+    public DateTime RenewalDate
+    {
+        get => _renewalDate;
+        set
+        {
+            if (_renewalDate == value)
+            {
+                return;
+            }
+            
+            _renewalDate = value;
+            AddDomainEvent(new SubscriptionRenewalDateUpdatedEvent(Id, RenewalDate));
+        }
+    }
     
     public decimal Cost { get; set; }
 
     public Currency Currency { get; set; }
+
+    public bool IsMuted { get; set; }
     
     public string? Note { get; set; }
     
@@ -30,21 +46,5 @@ public class Subscription : BaseEntity
 
     public User User { get; set; } = null!;
     
-    public ICollection<Reminder> Reminders { get; set; }
-
-
-    private readonly List<object> _domainEvents = [];
-
-    public IReadOnlyCollection<object> DomainEvents => _domainEvents.AsReadOnly();
-
-    public void AddDomainEvent(object eventItem) => _domainEvents.Add(eventItem);
-
-    public void ClearDomainEvents() => _domainEvents.Clear();
-
-    public void Renew()
-    {
-        RenewalDate = RenewalDate.AddPeriod(Plan, CustomPeriodInDays);
-
-        AddDomainEvent(new SubscriptionRenewedEvent(this));
-    }
+    public ICollection<ReminderRule> Reminders { get; set; }
 }

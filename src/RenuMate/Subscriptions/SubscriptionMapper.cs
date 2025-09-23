@@ -43,7 +43,6 @@ public static class SubscriptionMapper
                     NextReminder = subscription.RenewalDate.Date
                         .AddDays(-r.DaysBeforeRenewal)
                         .Add(r.NotifyTime),
-                    IsMuted = r.IsMuted
                 }).ToList()
         };
 }
