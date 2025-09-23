@@ -49,6 +49,7 @@ public class CreateSubscriptionEndpoint : IEndpoint
             StartDate = request.StartDate,
             Cost = request.Cost,
             Currency = currency,
+            IsMuted = false,
             Note = request.Note,
             CancelLink = request.CancelLink,
             UserId = userId
@@ -72,21 +73,10 @@ public class CreateSubscriptionEndpoint : IEndpoint
         }
 
         subscription.RenewalDate = renewalDate;
-
-        var reminder = new Reminder
-        {
-            Id = Guid.NewGuid(),
-            CreatedAt = DateTime.UtcNow,
-            SubscriptionId = subscription.Id,
-            DaysBeforeRenewal = 1,
-            NotifyTime = new TimeSpan(9, 0, 0),
-            IsMuted = false
-        };
         
         try
         {
             await db.Subscriptions.AddAsync(subscription, cancellationToken);
-            await db.Reminders.AddAsync(reminder, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(new CreateSubscriptionResponse
@@ -96,7 +86,8 @@ public class CreateSubscriptionEndpoint : IEndpoint
                 RenewalDate = subscription.RenewalDate,
                 Cost = $"{subscription.Cost}{subscription.Currency}",
                 Note = subscription.Note,
-                CancelLink = subscription.CancelLink
+                CancelLink = subscription.CancelLink,
+                PicLink = subscription.PicLink
             });
         }
         catch (Exception ex)

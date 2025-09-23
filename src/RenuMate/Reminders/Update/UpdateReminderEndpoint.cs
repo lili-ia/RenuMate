@@ -2,26 +2,26 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
-using RenuMate.Entities;
 using RenuMate.Enums;
 using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
-namespace RenuMate.Reminders.Create;
+namespace RenuMate.Reminders.Update;
 
-public class CreateReminderEndpoint : IEndpoint
+public class UpdateReminderEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPost("api/subscriptions/{subscriptionId:guid}/reminders", Handle);
+        app.MapPut("api/subscriptions/{subscriptionId:guid}/reminders/{reminderId:guid}", Handle);
     
-    private static async Task<IResult> Handle(
+     private static async Task<IResult> Handle(
+        [FromRoute] Guid reminderId,
         [FromRoute] Guid subscriptionId,
-        [FromBody] CreateReminderRequest request,
+        [FromBody] UpdateReminderRequest request,
         [FromServices] RenuMateDbContext db,
-        [FromServices] IValidator<CreateReminderRequest> validator,
+        [FromServices] IValidator<UpdateReminderRequest> validator,
         [FromServices] IUserContext userContext,
-        [FromServices] ILogger<CreateReminderEndpoint> logger,
+        [FromServices] ILogger<UpdateReminderEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
@@ -47,7 +47,7 @@ public class CreateReminderEndpoint : IEndpoint
         {
             return Results.NotFound("Subscription not found.");
         }
-        
+
         var similarExists = await db.ReminderRules
             .AnyAsync(r => r.SubscriptionId == subscriptionId
                            && r.DaysBeforeRenewal == request.DaysBeforeRenewal
@@ -56,15 +56,6 @@ public class CreateReminderEndpoint : IEndpoint
         if (similarExists)
         {
             return Results.Conflict("Similar reminder rule already exists.");
-        }
-
-        var remindersCount = await db.ReminderRules
-            .Where(r => r.SubscriptionId == subscriptionId)
-            .CountAsync(cancellationToken);
-
-        if (remindersCount == 3)
-        {
-            return Results.Conflict("You can not create more than 3 reminders for each subscription.");
         }
 
         var nextReminder = subscription.RenewalDate
@@ -84,32 +75,27 @@ public class CreateReminderEndpoint : IEndpoint
             };
         }
         
-        var reminderRule = new ReminderRule
-        {
-            SubscriptionId = subscriptionId,
-            DaysBeforeRenewal = request.DaysBeforeRenewal,
-            NotifyTime = request.NotifyTime
-        };
-
-        var nextReminderOccurrence = new ReminderOccurrence
-        {
-            ReminderRuleId = reminderRule.Id,
-            ScheduledAt = nextReminder,
-            IsSent = false
-        };
-        
         try
         {
-            await db.ReminderRules.AddAsync(reminderRule, cancellationToken);
-            await db.ReminderOccurrences.AddAsync(nextReminderOccurrence, cancellationToken);
-            await db.SaveChangesAsync(cancellationToken);
-            
-            return Results.Ok(new CreateReminderResponse
+            var rows = await db.ReminderRules
+                .Where(r => r.Id == reminderId)
+                .ExecuteUpdateAsync(
+                    setter => setter
+                        .SetProperty(r => r.NotifyTime, request.NotifyTime)
+                        .SetProperty(r => r.DaysBeforeRenewal, request.DaysBeforeRenewal),
+                    cancellationToken);
+
+            if (rows == 0)
             {
-                Id = reminderRule.Id,
-                SubscriptionId = reminderRule.SubscriptionId,
-                DaysBeforeRenewal = reminderRule.DaysBeforeRenewal,
-                NotifyTime = reminderRule.NotifyTime,
+                return Results.NotFound("Reminder not found.");
+            }
+            
+            return Results.Ok(new UpdateReminderResponse
+            {
+                Id = reminderId,
+                SubscriptionId = subscriptionId,
+                DaysBeforeRenewal = request.DaysBeforeRenewal,
+                NotifyTime = request.NotifyTime,
                 NextReminder = nextReminder
             });
         }
@@ -123,7 +109,7 @@ public class CreateReminderEndpoint : IEndpoint
     }
 }
 
-public class CreateReminderResponse
+public class UpdateReminderResponse
 {
     public Guid Id { get; set; }
     

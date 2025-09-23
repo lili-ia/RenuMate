@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RenuMate.Entities;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -21,32 +22,29 @@ public class ReminderService : IReminderService
     {
         var now = DateTime.UtcNow;
 
-        var reminders = await _db.Reminders
-            .Include(r => r.Subscription)
-            .ThenInclude(s => s.User)
-            .Where(r => !r.IsMuted)
+        var occurrences = await _db.ReminderOccurrences
+            .Include(o => o.ReminderRule)
+                .ThenInclude(r => r.Subscription)
+                .ThenInclude(s => s.User)
+            .Where(o => !o.ReminderRule.Subscription.IsMuted && !o.IsSent && o.ScheduledAt <= now)
             .ToListAsync();
-
-        var sentCount = 0;
         
-        foreach (var r in reminders)
+        foreach (var o in occurrences)
         {
-            var subscription = r.Subscription;
+            var subscription = o.ReminderRule.Subscription;
             var email = subscription.User.Email;
 
-            if (r.NextReminder <= now)
-            {
-                var period = subscription.CustomPeriodInDays.HasValue
-                    ? $"{subscription.CustomPeriodInDays.Value} days"
-                    : subscription.Plan.ToString();
+            var period = subscription.CustomPeriodInDays.HasValue
+                ? $"{subscription.CustomPeriodInDays.Value} days"
+                : subscription.Plan.ToString();
 
-                var note = string.IsNullOrWhiteSpace(subscription.Note)
-                    ? "No additional notes"
-                    : subscription.Note;
+            var note = string.IsNullOrWhiteSpace(subscription.Note)
+                ? "No additional notes"
+                : subscription.Note;
 
-                var subject = $"Reminder: Your subscription \"{subscription.Name}\" is active";
+            var subject = $"Reminder: Your subscription \"{subscription.Name}\" is active";
 
-                var body = @$"
+            var body = @$"
                     <p>Hi!
                     This is a friendly reminder about your subscription <strong>{subscription.Name}</strong>.</p>
                     <p>Subscription details:</p>
@@ -60,18 +58,31 @@ public class ReminderService : IReminderService
                     </ul>
                     <p>Thank you for using our service!</p>";
 
-                await _emailService.SendEmailAsync(email, subject, body);
-                
-                r.NextReminder = subscription.RenewalDate
-                    .AddDays(-r.DaysBeforeRenewal)
-                    .Add(r.NotifyTime);
+            await _emailService.SendEmailAsync(email, subject, body);
 
-                sentCount++;
+            o.IsSent = true;
+            o.SentAt = now;
+            
+            var nextReminderAt = subscription.RenewalDate
+                .AddDays(-o.ReminderRule.DaysBeforeRenewal)
+                .Add(o.ReminderRule.NotifyTime);
+
+            if (nextReminderAt <= now)
+            {
+                continue;
             }
+            
+            var nextReminder = new ReminderOccurrence
+            {
+                ReminderRuleId = o.ReminderRule.Id,
+                ScheduledAt = nextReminderAt,
+                IsSent = false
+            };
 
-            await _db.SaveChangesAsync();
-
-            _logger.LogInformation("Sent {RemindersCount} emails.", sentCount);
+            _db.ReminderOccurrences.Add(nextReminder);
         }
+        
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("Sent {RemindersCount} emails.", occurrences.Count);
     }
 }

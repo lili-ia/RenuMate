@@ -28,7 +28,7 @@ public class DeleteReminderEndpoint : IEndpoint
 
         try
         {
-            var rows = await db.Reminders
+            var rows = await db.ReminderRules
                 .Where(r => r.Id == reminderId 
                             && r.SubscriptionId == subscriptionId
                             && r.Subscription.UserId == userId)

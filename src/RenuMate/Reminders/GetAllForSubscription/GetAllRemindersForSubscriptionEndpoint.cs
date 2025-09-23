@@ -39,7 +39,7 @@ public class GetAllRemindersForSubscriptionEndpoint
             return Results.Forbid();
         }
         
-        var reminders = await db.Reminders
+        var reminders = await db.ReminderRules
             .Where(r => r.SubscriptionId == subscriptionId)
             .Select(ReminderMapper.ProjectToDto)
             .ToListAsync(cancellationToken);

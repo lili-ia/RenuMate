@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using RenuMate.EventHandlers;
-using RenuMate.Events;
+using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -10,13 +9,11 @@ public class SubscriptionService : ISubscriptionService
 {
     private readonly RenuMateDbContext _db;
     private readonly ILogger<SubscriptionService> _logger;
-    private readonly IEventHandler _eventHandler;
     
-    public SubscriptionService(RenuMateDbContext db, ILogger<SubscriptionService> logger, IEventHandler eventHandler)
+    public SubscriptionService(RenuMateDbContext db, ILogger<SubscriptionService> logger)
     {
         _db = db;
         _logger = logger;
-        _eventHandler = eventHandler;
     }
 
     public async Task ProcessSubscriptionRenewalAsync(CancellationToken cancellationToken = default)
@@ -29,22 +26,10 @@ public class SubscriptionService : ISubscriptionService
 
         foreach (var s in subscriptions)
         {
-            s.Renew();
+            s.RenewalDate = s.RenewalDate.AddPeriod(s.Plan, s.CustomPeriodInDays);
         }
 
         await _db.SaveChangesAsync(cancellationToken);
-
-        foreach (var s in subscriptions)
-        {
-            foreach (var ev in s.DomainEvents)
-            {
-                if (ev is SubscriptionRenewedEvent renewed)
-                {
-                    await _eventHandler.HandleAsync(renewed, cancellationToken);
-                }
-            }
-            s.ClearDomainEvents();
-        }
 
         _logger.LogInformation(
             "Successfully updated {SubscriptionCount} subscriptions renewal date.", 

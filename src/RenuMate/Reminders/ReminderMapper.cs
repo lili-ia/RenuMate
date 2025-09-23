@@ -6,7 +6,7 @@ namespace RenuMate.Reminders;
 
 public static class ReminderMapper
 {
-    public static Expression<Func<Reminder, ReminderDto>> ProjectToDto => reminder =>
+    public static Expression<Func<ReminderRule, ReminderDto>> ProjectToDto => reminder =>
         new ReminderDto
         {
             Id = reminder.Id,
@@ -14,7 +14,6 @@ public static class ReminderMapper
             NotifyTime = reminder.NotifyTime,
             NextReminder = reminder.Subscription.RenewalDate.Date
                 .AddDays(-reminder.DaysBeforeRenewal)
-                .Add(reminder.NotifyTime),
-            IsMuted = reminder.IsMuted
+                .Add(reminder.NotifyTime)
         };
 }
