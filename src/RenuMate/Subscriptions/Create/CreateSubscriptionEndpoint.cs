@@ -11,8 +11,9 @@ namespace RenuMate.Subscriptions.Create;
 
 public class CreateSubscriptionEndpoint : IEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPost("api/subscriptions", Handle);
+    public static void Map(IEndpointRouteBuilder app) => app.
+        MapPost("api/subscriptions", Handle)
+        .RequireAuthorization("EmailConfirmed");
 
     private static async Task<IResult> Handle(
         [FromBody] CreateSubscriptionRequest request,

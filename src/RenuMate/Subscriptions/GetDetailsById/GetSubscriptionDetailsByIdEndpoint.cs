@@ -9,7 +9,8 @@ namespace RenuMate.Subscriptions.GetDetailsById;
 public class GetSubscriptionDetailsByIdEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapGet("api/subscriptions/{id:guid}", Handle);
+        .MapGet("api/subscriptions/{id:guid}", Handle)
+        .RequireAuthorization("EmailConfirmed");
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,

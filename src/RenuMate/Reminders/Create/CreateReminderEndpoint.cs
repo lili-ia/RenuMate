@@ -12,8 +12,9 @@ namespace RenuMate.Reminders.Create;
 
 public class CreateReminderEndpoint : IEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPost("api/subscriptions/{subscriptionId:guid}/reminders", Handle);
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapPost("api/subscriptions/{subscriptionId:guid}/reminders", Handle)
+        .RequireAuthorization("EmailConfirmed");
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid subscriptionId,

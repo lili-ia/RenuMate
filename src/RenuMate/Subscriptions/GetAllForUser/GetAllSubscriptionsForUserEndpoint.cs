@@ -8,8 +8,9 @@ namespace RenuMate.Subscriptions.GetAllForUser;
 
 public class GetAllSubscriptionsForUserEndpoint : IEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app) =>
-        app.MapGet("api/subscriptions", Handle);
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapGet("api/subscriptions", Handle)
+        .RequireAuthorization("EmailConfirmed");
     
     private static async Task<IResult> Handle(
         [FromServices] IUserContext userContext,

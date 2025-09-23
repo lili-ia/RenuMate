@@ -7,8 +7,9 @@ namespace RenuMate.Reminders.GetAllForSubscription;
 
 public class GetAllRemindersForSubscriptionEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app) =>
-        app.MapGet("api/subscriptions/{subscriptionId:guid}/reminders", Handle);
+    public static void Map(IEndpointRouteBuilder app) => app.
+        MapGet("api/subscriptions/{subscriptionId:guid}/reminders", Handle)
+        .RequireAuthorization("EmailConfirmed");
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid subscriptionId,

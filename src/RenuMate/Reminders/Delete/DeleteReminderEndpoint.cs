@@ -9,7 +9,8 @@ namespace RenuMate.Reminders.Delete;
 public class DeleteReminderEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapDelete("api/subscriptions/{subscriptionId:guid}/reminders/{reminderId:guid}", Handle);
+        .MapDelete("api/subscriptions/{subscriptionId:guid}/reminders/{reminderId:guid}", Handle)
+        .RequireAuthorization("EmailConfirmed");
 
     private static async Task<IResult> Handle(
         [FromRoute] Guid subscriptionId,

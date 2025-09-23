@@ -9,7 +9,8 @@ namespace RenuMate.Subscriptions.Delete;
 public class DeleteSubscriptionEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapDelete("api/subscriptions/{id:guid}", Handle);
+        .MapDelete("api/subscriptions/{id:guid}", Handle)
+        .RequireAuthorization("EmailConfirmed");
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,

@@ -11,7 +11,8 @@ namespace RenuMate.Subscriptions.Update;
 public class UpdateSubscriptionEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapPut("api/subscriptions/{id:guid}", Handle);
+        .MapPut("api/subscriptions/{id:guid}", Handle)
+        .RequireAuthorization("EmailConfirmed");
 
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,
