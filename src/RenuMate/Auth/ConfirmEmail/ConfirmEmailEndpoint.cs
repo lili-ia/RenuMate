@@ -61,6 +61,7 @@ public class ConfirmEmailEndpoint : IEndpoint
                 userId: user.Id.ToString(),
                 email: user.Email,
                 purpose: "Access",
+                emailConfirmed: "true",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
             return Results.Ok(new ConfirmEmailResponse

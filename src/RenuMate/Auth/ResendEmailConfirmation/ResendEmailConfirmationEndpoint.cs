@@ -51,6 +51,7 @@ public class ResendEmailConfirmationEndpoint : IEndpoint
             userId: user.Id.ToString(),
             email: user.Email,
             purpose: "ConfirmEmail",
+            emailConfirmed: "false",
             expiresAt: DateTime.UtcNow.AddHours(24));
         
         var frontendUrl = configuration["App:FrontendUrl"];

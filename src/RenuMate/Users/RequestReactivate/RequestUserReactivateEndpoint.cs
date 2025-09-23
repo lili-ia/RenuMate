@@ -46,6 +46,7 @@ public class RequestUserReactivateEndpoint : IEndpoint
             userId: user.Id.ToString(),
             email: user.Email,
             purpose: "Reactivate",
+            emailConfirmed: "true",
             expiresAt: DateTime.UtcNow.AddHours(1));
 
         var link = $"{frontendUrl}/reactivate?token={Uri.EscapeDataString(token)}";

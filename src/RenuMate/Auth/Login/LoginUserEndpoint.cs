@@ -56,6 +56,7 @@ public class LoginUserEndpoint : IEndpoint
             userId: user.Id.ToString(),
             email: user.Email,
             purpose: "Access",
+            emailConfirmed: user.IsEmailConfirmed ? "true" : "false",
             expiresAt: DateTime.UtcNow.AddHours(24));
         
         return Results.Ok(new LoginUserResponse

@@ -51,6 +51,7 @@ public class PasswordResetRequestEndpoint : IEndpoint
             userId: user.Id.ToString(),
             email: user.Email,
             purpose: "PasswordRecover",
+            emailConfirmed: user.IsEmailConfirmed ? "true" : "false",
             expiresAt: DateTime.UtcNow.AddMinutes(30));
         
         var frontendUrl = configuration["App:FrontendUrl"];

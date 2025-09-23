@@ -15,13 +15,14 @@ public class TokenService : ITokenService
         _configuration = configuration;
     }
     
-    public string CreateToken(string userId, string email, string purpose, DateTime expiresAt)
+    public string CreateToken(string userId, string email, string purpose, string emailConfrimed, DateTime expiresAt)
     {
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, userId),
             new(ClaimTypes.Email, email),
-            new("purpose", purpose)
+            new("purpose", purpose),
+            new("emailconfirmed", emailConfrimed)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SigningKey"]!));

@@ -66,6 +66,7 @@ public class ReactivateUserEndpoint : IEndpoint
                 userId: userId.ToString(), 
                 email: user.Email, 
                 purpose: "Reactivate",
+                emailConfirmed: "true",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
             return Results.Ok(new ReactivateUserResponse

@@ -6,11 +6,11 @@ using RenuMate.Auth.ResetPassword;
 using RenuMate.Reminders.Create;
 using RenuMate.Reminders.Delete;
 using RenuMate.Reminders.GetAllForSubscription;
-using RenuMate.Reminders.UpdateMuteStatus;
 using RenuMate.Subscriptions.Create;
 using RenuMate.Subscriptions.Delete;
 using RenuMate.Subscriptions.GetAllForUser;
 using RenuMate.Subscriptions.GetDetailsById;
+using RenuMate.Subscriptions.SetMuteStatus;
 using RenuMate.Subscriptions.Update;
 using RenuMate.Users.Deactivate;
 using RenuMate.Users.Reactivate;
@@ -37,10 +37,10 @@ public static class EndpointExtensions
         DeleteSubscriptionEndpoint.Map(app);
         GetSubscriptionDetailsByIdEndpoint.Map(app);
         GetAllSubscriptionsForUserEndpoint.Map(app);
+        SetSubscriptionMuteStatusEndpoint.Map(app);
         
         CreateReminderEndpoint.Map(app);
         DeleteReminderEndpoint.Map(app);
         GetAllRemindersForSubscriptionEndpoint.Map(app);
-        UpdateReminderMuteStatusEndpoint.Map(app);
     }
 }

@@ -7,22 +7,47 @@ namespace RenuMate.Persistence;
 
 public class RenuMateDbContext : DbContext
 {
-    public RenuMateDbContext()
+    private readonly IMediator _mediator;
+    public RenuMateDbContext(IMediator mediator)
     {
-        
+        _mediator = mediator;
     }
     
-    public RenuMateDbContext(DbContextOptions<RenuMateDbContext> options)
+    public RenuMateDbContext(DbContextOptions<RenuMateDbContext> options, IMediator mediator)
         : base(options)
     {
-        
+        _mediator = mediator;
     }
     
     public virtual DbSet<User> Users { get; set; }
     
     public virtual DbSet<Subscription> Subscriptions { get; set; }
     
-    public virtual DbSet<Reminder> Reminders { get; set; }
+    public virtual DbSet<ReminderRule> ReminderRules { get; set; }
+    
+    public virtual DbSet<ReminderOccurrence> ReminderOccurrences { get; set; }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = new CancellationToken())
+    {
+        var domainEvents = ChangeTracker
+            .Entries<BaseEntity>()
+            .SelectMany(e => e.Entity.DomainEvents)
+            .ToList();
+        
+        ChangeTracker
+            .Entries<BaseEntity>()
+            .ToList()
+            .ForEach(e => e.Entity.ClearDomainEvents());
+
+        var result = await base.SaveChangesAsync(cancellationToken);
+
+        foreach (var domainEvent in domainEvents)
+        {
+            await _mediator.Publish(domainEvent, cancellationToken);
+        }
+            
+        return result;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
