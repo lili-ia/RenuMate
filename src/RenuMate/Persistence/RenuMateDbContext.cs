@@ -63,6 +63,10 @@ public class RenuMateDbContext : DbContext
             entity.Property(e => e.Email)
                 .IsRequired()
                 .HasMaxLength(255);
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasMaxLength(50);
             
             entity.Property(e => e.PasswordHash)
                 .IsRequired();

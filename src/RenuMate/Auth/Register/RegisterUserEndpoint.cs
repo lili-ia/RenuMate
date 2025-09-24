@@ -47,6 +47,7 @@ public abstract class RegisterUserEndpoint : IEndpoint
             Id = Guid.NewGuid(),
             CreatedAt = DateTime.UtcNow,
             Email = request.Email,
+            Name = request.Name,
             PasswordHash = hashedPassword,
             IsEmailConfirmed = false,
             IsActive = true

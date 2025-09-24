@@ -45,7 +45,7 @@ public class ReminderService : IReminderService
             var subject = $"Reminder: Your subscription \"{subscription.Name}\" is active";
 
             var body = @$"
-                    <p>Hi!
+                    <p>Hi, {subscription.User.Name}!
                     This is a friendly reminder about your subscription <strong>{subscription.Name}</strong>.</p>
                     <p>Subscription details:</p>
                     <ul>
