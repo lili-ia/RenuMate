@@ -15,7 +15,9 @@ using IEmailSender = RenuMate.Services.Contracts.IEmailSender;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.RateLimiting;
+using RenuMate.Converters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +36,11 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 2
             }));
+});
+
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new UtcDateTimeConverter());
 });
 
 builder.Services.AddAuthentication();
@@ -97,7 +104,7 @@ builder.Services.AddHangfire(config =>
 builder.Services.AddHangfireServer();
 
 var app = builder.Build();
-
+app.UseCors("AllowFrontend");
 app.UseExceptionHandler();
 
 app.UseRateLimiter(new RateLimiterOptions
@@ -116,7 +123,6 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
 app.MapEndpoints();
 app.MapHangfireDashboard();
 
