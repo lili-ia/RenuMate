@@ -5,8 +5,8 @@ namespace RenuMate.Auth.Register;
 public class RegisterUserRequest
 {
     public string Email { get; set; } = null!;
-    
-    public string Name { get; set; }
+
+    public string Name { get; set; } = null!;
 
     public string Password { get; set; } = null!;
 }
@@ -26,6 +26,11 @@ public class RegisterUserRequestValidator : AbstractValidator<RegisterUserReques
 
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Password is required.")
-            .MinimumLength(6).WithMessage("Password must be at least 6 characters.");
+            .MinimumLength(8).WithMessage("Password must be at least 8 characters.")
+            .MaximumLength(128).WithMessage("Password cannot exceed 128 characters.")
+            .Matches("[A-Z]").WithMessage("Password must contain at least one uppercase letter.")
+            .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter.")
+            .Matches("[0-9]").WithMessage("Password must contain at least one number.")
+            .Matches("[^a-zA-Z0-9]").WithMessage("Password must contain at least one special character.");
     }
 }

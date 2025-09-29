@@ -51,6 +51,7 @@ public class UpdateReminderEndpoint : IEndpoint
 
         var similarExists = await db.ReminderRules
             .AnyAsync(r => r.SubscriptionId == subscriptionId
+                           && r.Id != reminderId
                            && r.DaysBeforeRenewal == request.DaysBeforeRenewal
                            && r.NotifyTime == request.NotifyTime, cancellationToken);
 

@@ -49,7 +49,7 @@ public class UpdateSubscriptionEndpoint : IEndpoint
             return Results.Forbid();
         }
         
-        Enum.TryParse<SubscriptionPlan>(request.Type, true, out var type);
+        Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var type);
         Enum.TryParse<Currency>(request.Currency, true, out var currency);
         
         var renewalDate = new DateTime();
@@ -78,6 +78,7 @@ public class UpdateSubscriptionEndpoint : IEndpoint
         subscription.Currency = currency;
         subscription.Note = request.Note;
         subscription.CancelLink = request.CancelLink;
+        subscription.PicLink = request.PicLink;
         
         try
         {

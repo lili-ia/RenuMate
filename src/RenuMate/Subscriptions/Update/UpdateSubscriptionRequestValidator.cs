@@ -11,17 +11,17 @@ public class UpdateSubscriptionRequestValidator : AbstractValidator<UpdateSubscr
             .NotEmpty().WithMessage("Subscription name is required.")
             .MaximumLength(100).WithMessage("Subscription name must not exceed 100 characters.");
 
-        RuleFor(x => x.Type)
+        RuleFor(x => x.Plan)
             .NotEmpty().WithMessage("Subscription plan is required.")
-            .Must(type => Enum.TryParse<SubscriptionPlan>(type, true, out _))
+            .Must(plan => Enum.TryParse<SubscriptionPlan>(plan, true, out _))
             .WithMessage("Invalid subscription plan.");
 
         RuleFor(x => x.CustomPeriodInDays)
             .GreaterThan(0)
-            .When(x => x.Type.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
+            .When(x => x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
             .WithMessage("Custom period must be greater than zero for custom subscriptions.")
             .Null()
-            .When(x => !x.Type.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
+            .When(x => !x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
             .WithMessage("Custom period should only be set for custom subscriptions.");
 
         RuleFor(x => x.StartDate)

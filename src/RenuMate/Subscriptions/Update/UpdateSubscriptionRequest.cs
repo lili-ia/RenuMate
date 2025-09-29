@@ -4,7 +4,7 @@ public class UpdateSubscriptionRequest
 {
     public string Name { get; set; } = null!;
 
-    public string Type { get; set; } = null!;
+    public string Plan { get; set; } = null!;
     
     public int? CustomPeriodInDays { get; set; }
     

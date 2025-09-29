@@ -12,25 +12,25 @@ namespace RenuMate.Auth.ConfirmEmail;
 public class ConfirmEmailEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapGet("api/auth/confirm-email", Handle)
+        .MapPost("api/auth/confirm-email", Handle)
         .WithSummary("Confirms email.");
 
     private static async Task<IResult> Handle(
-        [FromQuery] string token,
+        [FromBody] ConfirmEmailRequest request,
         [FromServices] RenuMateDbContext db,
         [FromServices] ITokenService tokenService,
         [FromServices] ILogger<ConfirmEmailEndpoint> logger,
         [FromServices] IValidator<string> validator,
         CancellationToken cancellationToken = default)
     {
-        var validation = await validator.ValidateAsync(token, cancellationToken);
+        var validation = await validator.ValidateAsync(request.Token, cancellationToken);
         
         if (!validation.IsValid)
         {
             return validation.ToFailureResult();
         }
 
-        var principal = tokenService.ValidateToken(token, expectedPurpose: "ConfirmEmail");
+        var principal = tokenService.ValidateToken(request.Token, expectedPurpose: "ConfirmEmail");
         
         if (principal == null)
         {

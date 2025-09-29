@@ -6,6 +6,7 @@ using RenuMate.Auth.ResetPassword;
 using RenuMate.Reminders.Create;
 using RenuMate.Reminders.Delete;
 using RenuMate.Reminders.GetAllForSubscription;
+using RenuMate.Reminders.Update;
 using RenuMate.Subscriptions.Create;
 using RenuMate.Subscriptions.Delete;
 using RenuMate.Subscriptions.GetAllForUser;
@@ -42,5 +43,6 @@ public static class EndpointExtensions
         CreateReminderEndpoint.Map(app);
         DeleteReminderEndpoint.Map(app);
         GetAllRemindersForSubscriptionEndpoint.Map(app);
+        UpdateReminderEndpoint.Map(app);
     }
 }

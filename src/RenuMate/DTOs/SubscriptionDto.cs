@@ -4,6 +4,7 @@ namespace RenuMate.DTOs;
 
 public class SubscriptionDto
 {
+    public Guid Id { get; set; }
     public string Name { get; set; } = null!;
     
     public SubscriptionPlan Plan { get; set; }
@@ -19,6 +20,8 @@ public class SubscriptionDto
     public decimal Cost { get; set; }
 
     public Currency Currency { get; set; }
+    
+    public bool IsMuted { get; set; }
     
     public string? Note { get; set; }
     

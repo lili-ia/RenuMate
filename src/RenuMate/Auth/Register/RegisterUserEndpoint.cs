@@ -37,7 +37,7 @@ public abstract class RegisterUserEndpoint : IEndpoint
 
         if (userExists)
         {
-            return Results.BadRequest("User with this email already registered.");
+            return Results.Conflict("User with this email already registered.");
         }
 
         var hashedPassword = passwordHasher.HashPassword(request.Password);

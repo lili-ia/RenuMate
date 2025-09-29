@@ -1,5 +1,3 @@
-using RenuMate.Subscriptions;
-
 namespace RenuMate.DTOs;
 
 public class SubscriptionDetailsDto : SubscriptionDto
