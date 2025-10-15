@@ -87,7 +87,6 @@ public class ResetPasswordEndpoint : IEndpoint
             logger.LogError(ex, "Error while resetting password for user {UserId}.", user.Id);
 
             return Results.InternalServerError("An internal error occurred.");;
-            return Results.InternalServerError("An internal error occurred.");;
         }
     }
 }
