@@ -1,0 +1,23 @@
+﻿services:
+  web:
+    image: renumate
+    build:
+      context: .
+      dockerfile: RenuMate/Dockerfile
+    depends_on:
+      - db
+    restart: unless-stopped
+    
+  db:
+    image: postgres:latest
+    container_name: mydb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: RenuMate
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    
+volumes:
+  postgres_data:
