@@ -42,10 +42,10 @@ public static class SubscriptionMapper
                 {
                     Id = r.Id,
                     DaysBeforeRenewal = r.DaysBeforeRenewal,
-                    NotifyTime = r.NotifyTime,
+                    NotifyTime = r.NotifyTimeUtc,
                     NextReminder = subscription.RenewalDate.Date
                         .AddDays(-r.DaysBeforeRenewal)
-                        .Add(r.NotifyTime),
+                        .Add(r.NotifyTimeUtc),
                 }).ToList()
         };
 }

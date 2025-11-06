@@ -34,7 +34,7 @@ public class RequestUserReactivateEndpoint : IEndpoint
 
         if (user is null || user.IsActive)
         {
-            return Results.Ok(new ReactivateRequestResponse
+            return Results.Ok(new RequestReactivateResponse
             {
                 Message = "If your account exists and is deactivated, a reactivation email was sent."
             });
@@ -54,14 +54,14 @@ public class RequestUserReactivateEndpoint : IEndpoint
 
         await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
 
-        return Results.Ok(new ReactivateRequestResponse
+        return Results.Ok(new RequestReactivateResponse
         {
             Message = "If your account exists and is deactivated, a reactivation email was sent."
         });
     }
 }
 
-public class ReactivateRequestResponse
+public class RequestReactivateResponse
 {
     public string Message { get; set; }
 }

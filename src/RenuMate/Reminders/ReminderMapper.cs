@@ -11,9 +11,9 @@ public static class ReminderMapper
         {
             Id = reminder.Id,
             DaysBeforeRenewal = reminder.DaysBeforeRenewal,
-            NotifyTime = reminder.NotifyTime,
+            NotifyTime = reminder.NotifyTimeUtc,
             NextReminder = reminder.Subscription.RenewalDate.Date
                 .AddDays(-reminder.DaysBeforeRenewal)
-                .Add(reminder.NotifyTime)
+                .Add(reminder.NotifyTimeUtc)
         };
 }

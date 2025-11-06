@@ -119,7 +119,7 @@ public class RenuMateDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValue(1);
             
-            entity.Property(r => r.NotifyTime)
+            entity.Property(r => r.NotifyTimeUtc)
                 .IsRequired()
                 .HasDefaultValue(new TimeSpan(9, 0, 0));
 

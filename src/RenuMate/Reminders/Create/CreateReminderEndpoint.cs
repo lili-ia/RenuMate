@@ -49,10 +49,23 @@ public class CreateReminderEndpoint : IEndpoint
             return Results.NotFound("Subscription not found.");
         }
         
+        var userTz = TimeZoneInfo.FindSystemTimeZoneById(request.Timezone);
+        var today = DateTime.Today;
+
+        var localDateTime = new DateTime(
+            today.Year, today.Month, today.Day,
+            request.NotifyTime.Hours,
+            request.NotifyTime.Minutes,
+            request.NotifyTime.Seconds,
+            DateTimeKind.Unspecified);
+
+        var utcDateTime = TimeZoneInfo.ConvertTimeToUtc(localDateTime, userTz);
+        var utcTime = utcDateTime.TimeOfDay;
+        
         var similarExists = await db.ReminderRules
             .AnyAsync(r => r.SubscriptionId == subscriptionId
                            && r.DaysBeforeRenewal == request.DaysBeforeRenewal
-                           && r.NotifyTime == request.NotifyTime, cancellationToken);
+                           && r.NotifyTimeUtc == utcTime, cancellationToken);
 
         if (similarExists)
         {
@@ -70,7 +83,7 @@ public class CreateReminderEndpoint : IEndpoint
 
         var nextReminder = subscription.RenewalDate
             .AddDays(-request.DaysBeforeRenewal)
-            .Add(request.NotifyTime);
+            .Add(utcTime);
             
         while (nextReminder <= DateTime.UtcNow)
         {
@@ -84,12 +97,14 @@ public class CreateReminderEndpoint : IEndpoint
                 _ => throw new InvalidOperationException("Unknown subscription plan")
             };
         }
+
+       
         
         var reminderRule = new ReminderRule
         {
             SubscriptionId = subscriptionId,
             DaysBeforeRenewal = request.DaysBeforeRenewal,
-            NotifyTime = request.NotifyTime
+            NotifyTimeUtc = utcTime
         };
 
         var nextReminderOccurrence = new ReminderOccurrence
@@ -110,7 +125,7 @@ public class CreateReminderEndpoint : IEndpoint
                 Id = reminderRule.Id,
                 SubscriptionId = reminderRule.SubscriptionId,
                 DaysBeforeRenewal = reminderRule.DaysBeforeRenewal,
-                NotifyTime = reminderRule.NotifyTime,
+                NotifyTime = reminderRule.NotifyTimeUtc,
                 NextReminder = nextReminder
             });
         }

@@ -65,7 +65,7 @@ public class ReminderService : IReminderService
             
             var nextReminderAt = subscription.RenewalDate
                 .AddDays(-o.ReminderRule.DaysBeforeRenewal)
-                .Add(o.ReminderRule.NotifyTime);
+                .Add(o.ReminderRule.NotifyTimeUtc);
 
             if (nextReminderAt <= now)
             {

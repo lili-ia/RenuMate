@@ -53,7 +53,7 @@ public class UpdateReminderEndpoint : IEndpoint
             .AnyAsync(r => r.SubscriptionId == subscriptionId
                            && r.Id != reminderId
                            && r.DaysBeforeRenewal == request.DaysBeforeRenewal
-                           && r.NotifyTime == request.NotifyTime, cancellationToken);
+                           && r.NotifyTimeUtc == request.NotifyTime, cancellationToken);
 
         if (similarExists)
         {
@@ -83,7 +83,7 @@ public class UpdateReminderEndpoint : IEndpoint
                 .Where(r => r.Id == reminderId)
                 .ExecuteUpdateAsync(
                     setter => setter
-                        .SetProperty(r => r.NotifyTime, request.NotifyTime)
+                        .SetProperty(r => r.NotifyTimeUtc, request.NotifyTime)
                         .SetProperty(r => r.DaysBeforeRenewal, request.DaysBeforeRenewal),
                     cancellationToken);
 

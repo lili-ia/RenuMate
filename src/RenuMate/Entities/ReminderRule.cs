@@ -8,19 +8,19 @@ public class ReminderRule : BaseEntity
     
     public Subscription Subscription { get; set; } = null!;
 
-    private TimeSpan _notifyTime;
-    public TimeSpan NotifyTime
+    private TimeSpan _notifyTimeUtc;
+    public TimeSpan NotifyTimeUtc
     {
-        get => _notifyTime;
+        get => _notifyTimeUtc;
         set
         {
-            if (_notifyTime == value)
+            if (_notifyTimeUtc == value)
             {
                 return;
             }
             
-            _notifyTime = value;
-            AddDomainEvent(new ReminderRuleUpdatedEvent(Id, DaysBeforeRenewal, NotifyTime));
+            _notifyTimeUtc = value;
+            AddDomainEvent(new ReminderRuleUpdatedEvent(Id, DaysBeforeRenewal, NotifyTimeUtc));
         }
     }
 
@@ -36,7 +36,7 @@ public class ReminderRule : BaseEntity
             }
             
             _daysBeforeRenewal = value;
-            AddDomainEvent(new ReminderRuleUpdatedEvent(Id, DaysBeforeRenewal, NotifyTime));
+            AddDomainEvent(new ReminderRuleUpdatedEvent(Id, DaysBeforeRenewal, NotifyTimeUtc));
         }
     }
     

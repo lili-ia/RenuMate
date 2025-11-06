@@ -18,7 +18,7 @@ public class SubscriptionRenewalDateUpdatedEventHandler(RenuMateDbContext db) : 
         {
             r.ScheduledAt = notification.RenewalDate
                 .AddDays(-r.ReminderRule.DaysBeforeRenewal)
-                .Add(r.ReminderRule.NotifyTime);
+                .Add(r.ReminderRule.NotifyTimeUtc);
         }
 
         await db.SaveChangesAsync(cancellationToken);
