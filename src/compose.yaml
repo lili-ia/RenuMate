@@ -1,23 +1,36 @@
 ﻿services:
   web:
-    image: renumate
+    image: renumate-backend:latest
     build:
       context: .
       dockerfile: RenuMate/Dockerfile
     depends_on:
       - db
+    ports:
+      - "8080:8080"
     restart: unless-stopped
-    
+  
   db:
     image: postgres:latest
-    container_name: mydb
+    container_name: db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: RenuMate
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     restart: unless-stopped
     
+  frontend:
+    image: renumate-frontend:latest
+    build:
+      context: ./renumate-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+
+
