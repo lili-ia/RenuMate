@@ -52,7 +52,12 @@ public class RequestUserReactivateEndpoint : IEndpoint
         var link = $"{frontendUrl}/reactivate?token={Uri.EscapeDataString(token)}";
         var body = $"<p>Click the link to reactivate your account:</p><p><a href='{link}'>Reactivate Account</a></p>";
 
-        await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
+        var sentSuccess =  await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
+
+        if (!sentSuccess)
+        {
+            return Results.InternalServerError();
+        }
 
         return Results.Ok(new RequestReactivateResponse
         {

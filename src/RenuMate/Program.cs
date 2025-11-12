@@ -100,7 +100,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddLogging();
-builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<EmailSenderOptions>(builder.Configuration.GetSection("EmailSender"));
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IUserContext, UserContext>();
 builder.Services.AddTransient<IPasswordHasher, PasswordHasher>();
@@ -115,10 +115,24 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+using var scope = app.Services.CreateScope();
+var db = scope.ServiceProvider.GetRequiredService<RenuMateDbContext>();
+
+var retries = 10;
+while (retries > 0)
 {
-    var db = scope.ServiceProvider.GetService<RenuMateDbContext>();
-    db.Database.Migrate();
+    try
+    {
+        db.Database.Migrate();
+        Console.WriteLine("Database ready.");
+        break;
+    }
+    catch (Exception ex)
+    {
+        retries--;
+        Console.WriteLine($"Database not ready, retrying... {retries} attempts left.");
+        Thread.Sleep(5000);
+    }
 }
 
 app.UseCors("AllowFrontend");

@@ -3,6 +3,7 @@ using RenuMate.Auth.Login;
 using RenuMate.Auth.Register;
 using RenuMate.Auth.RequestEmailChange;
 using RenuMate.Auth.RequestPasswordReset;
+using RenuMate.Auth.ResendEmailConfirmation;
 using RenuMate.Auth.ResetPassword;
 using RenuMate.Reminders.Create;
 using RenuMate.Reminders.Delete;
@@ -31,6 +32,7 @@ public static class EndpointExtensions
         PasswordResetRequestEndpoint.Map(app);
         ResetPasswordEndpoint.Map(app);
         RequestEmailChangeEndpoint.Map(app);
+        ResendEmailConfirmationEndpoint.Map(app);
         
         DeactivateUserEndpoint.Map(app);
         ReactivateUserEndpoint.Map(app);

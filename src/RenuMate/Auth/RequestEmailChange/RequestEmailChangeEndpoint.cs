@@ -82,7 +82,12 @@ public class RequestEmailChangeEndpoint : IEndpoint
                         <p>If you didn’t request this change, you can safely ignore this email.</p>
                     """;
         
-        await emailSender.SendEmailAsync(request.NewEmail, "Confirm your new email", body);
+        var sentSuccess = await emailSender.SendEmailAsync(request.NewEmail, "Confirm your new email", body);
+        
+        if (!sentSuccess)
+        {
+            return Results.InternalServerError();
+        }
         
         return Results.Ok(new
         {

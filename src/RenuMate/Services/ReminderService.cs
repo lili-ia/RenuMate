@@ -58,10 +58,13 @@ public class ReminderService : IReminderService
                     </ul>
                     <p>Thank you for using our service!</p>";
 
-            await _emailService.SendEmailAsync(email, subject, body);
+            var sentSuccess = await _emailService.SendEmailAsync(email, subject, body);
 
-            o.IsSent = true;
-            o.SentAt = now;
+            if (sentSuccess)
+            {
+                o.IsSent = true;
+                o.SentAt = now;
+            }
             
             var nextReminderAt = subscription.RenewalDate
                 .AddDays(-o.ReminderRule.DaysBeforeRenewal)

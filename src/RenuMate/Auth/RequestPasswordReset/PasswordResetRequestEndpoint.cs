@@ -66,7 +66,12 @@ public class PasswordResetRequestEndpoint : IEndpoint
         var body = $"<p>Click the link below to reset your password:</p>" +
                    $"<p><a href='{resetLink}'>Reset Password</a></p>";
         
-        await emailSender.SendEmailAsync(user.Email, "Password Reset", body);
+        var sentSuccess = await emailSender.SendEmailAsync(user.Email, "Password Reset", body);
+        
+        if (!sentSuccess)
+        {
+            return Results.InternalServerError();
+        }
         
         return Results.Ok(new PasswordResetRequestResponse
         {

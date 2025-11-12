@@ -66,7 +66,12 @@ public class ResendEmailConfirmationEndpoint : IEndpoint
         var body = $"<p>Please confirm your email by clicking the link below:</p>" +
                    $"<p><a href='{confirmLink}'>Confirm Email</a></p>";
 
-        await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
+        var sentSuccess = await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
+        
+        if (!sentSuccess)
+        {
+            return Results.InternalServerError();
+        }
         
         return Results.Ok(new ResendEmailConfirmationResponse
         {
