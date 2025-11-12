@@ -8,12 +8,19 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.RequestEmailChange;
 
-public class RequestEmailChangeEndpoint : IEndpoint
+public abstract class RequestEmailChangeEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/change-email", Handle)
         .RequireAuthorization()
-        .WithSummary("Requests an email change by sending a verification link to the new email address.");
+        .WithSummary("Request email change.")
+        .WithDescription("Sends a verification link to the new email address for confirmation.")
+        .WithTags("Authentication")
+        .Produces<MessageResponse>(200, "application/json")
+        .Produces(400) 
+        .Produces(401) 
+        .Produces(404)
+        .Produces(500);
     
     private static async Task<IResult> Handle(
         [FromBody] EmailChangeRequest request,
@@ -89,7 +96,7 @@ public class RequestEmailChangeEndpoint : IEndpoint
             return Results.InternalServerError();
         }
         
-        return Results.Ok(new
+        return Results.Ok(new MessageResponse
         {
             Message = "Email change request sent successfully. Please check your new email to confirm the change."
         });

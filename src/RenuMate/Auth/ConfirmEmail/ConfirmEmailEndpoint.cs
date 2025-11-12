@@ -9,11 +9,15 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.ConfirmEmail;
 
-public class ConfirmEmailEndpoint : IEndpoint
+public abstract class ConfirmEmailEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/confirm-email", Handle)
-        .WithSummary("Confirms email.");
+        .WithSummary("Confirms a user's email address.")
+        .WithDescription("Validates the email confirmation token, marks the user's email as confirmed, and returns an access token.")
+        .WithTags("Authentication")
+        .Produces<TokenResponse>(200, "application/json")
+        .Produces(400);
 
     private static async Task<IResult> Handle(
         [FromBody] ConfirmEmailRequest request,
@@ -64,9 +68,8 @@ public class ConfirmEmailEndpoint : IEndpoint
                 emailConfirmed: "true",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
-            return Results.Ok(new ConfirmEmailResponse
+            return Results.Ok(new TokenResponse
             {
-                Message = "Email confirmed successfully.",
                 Token = accessToken
             });
         }
@@ -77,11 +80,4 @@ public class ConfirmEmailEndpoint : IEndpoint
             return Results.BadRequest("Invalid or expired token.");
         }
     }
-}
-
-public class ConfirmEmailResponse
-{
-    public string Message { get; set; } = null!;
-
-    public string Token { get; set; } = null!;
 }

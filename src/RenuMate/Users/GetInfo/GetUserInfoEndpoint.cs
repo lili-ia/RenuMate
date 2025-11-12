@@ -6,12 +6,17 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Users.GetInfo;
 
-public class GetUserInfoEndpoint : IEndpoint
+public abstract class GetUserInfoEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/users/me", Handle)
-        .WithSummary("Gets info about current user.")
-        .RequireAuthorization();
+        .RequireAuthorization()
+        .WithSummary("Get current user info.")
+        .WithDescription("Retrieves details about the authenticated user including email, name, member since, and subscription count.")
+        .WithTags("Users")
+        .Produces<UserInfoResponse>(200, "application/json")
+        .Produces(401)
+        .Produces(404);
 
     private static async Task<IResult> Handle(
         [FromServices] RenuMateDbContext db,
@@ -45,17 +50,4 @@ public class GetUserInfoEndpoint : IEndpoint
         
         return Results.Ok(info);
     }
-}
-
-public class UserInfoResponse
-{
-    public Guid Id { get; set; }
-
-    public string Email { get; set; } = null!;
-    
-    public string Name { get; set; } = null!;
-    
-    public DateTime MemberSince { get; set; }
-    
-    public int SubscriptionCount { get; set; }
 }

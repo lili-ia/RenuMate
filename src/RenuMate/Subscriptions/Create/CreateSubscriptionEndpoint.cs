@@ -9,12 +9,19 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Subscriptions.Create;
 
-public class CreateSubscriptionEndpoint : IEndpoint
+public abstract class CreateSubscriptionEndpoint : IEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app) => app.
-        MapPost("api/subscriptions", Handle)
-        .RequireAuthorization("EmailConfirmed");
-
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapPost("api/subscriptions", Handle)
+        .RequireAuthorization("EmailConfirmed")
+        .WithSummary("Create a subscription.")
+        .WithDescription("Creates a new subscription for the authenticated user, calculating the renewal date based on the plan and optional custom period.")
+        .WithTags("Subscriptions")
+        .Produces<CreateSubscriptionResponse>(200, "application/json")
+        .Produces(400)
+        .Produces(401)
+        .Produces(500);
+    
     private static async Task<IResult> Handle(
         [FromBody] CreateSubscriptionRequest request,
         [FromServices] IUserContext userContext,

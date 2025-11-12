@@ -8,11 +8,16 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Users.RequestReactivate;
 
-public class RequestUserReactivateEndpoint : IEndpoint
+public abstract class RequestUserReactivateEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/users/reactivate-request", Handle)
-        .WithSummary("Requests user account reactivation.");
+        .WithSummary("Request user account reactivation.")
+        .WithDescription("If the account exists and is deactivated, a reactivation email is sent with a verification link.")
+        .WithTags("Users")
+        .Produces<MessageResponse>(200, "application/json")
+        .Produces(400)
+        .Produces(500);
 
     private static async Task<IResult> Handle(
         [FromBody] ReactivateRequest request, 
@@ -34,7 +39,7 @@ public class RequestUserReactivateEndpoint : IEndpoint
 
         if (user is null || user.IsActive)
         {
-            return Results.Ok(new RequestReactivateResponse
+            return Results.Ok(new MessageResponse
             {
                 Message = "If your account exists and is deactivated, a reactivation email was sent."
             });
@@ -59,14 +64,9 @@ public class RequestUserReactivateEndpoint : IEndpoint
             return Results.InternalServerError();
         }
 
-        return Results.Ok(new RequestReactivateResponse
+        return Results.Ok(new MessageResponse
         {
             Message = "If your account exists and is deactivated, a reactivation email was sent."
         });
     }
-}
-
-public class RequestReactivateResponse
-{
-    public string Message { get; set; }
 }

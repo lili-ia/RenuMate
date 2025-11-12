@@ -9,11 +9,18 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Users.Reactivate;
 
-public class ReactivateUserEndpoint : IEndpoint
+public abstract class ReactivateUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapPost("api/users/reactivate", Handle)
-        .WithSummary("Reactivates user account.");
+        .MapGet("api/users/me", Handle)
+        .WithSummary("Reactivates user account.")
+        .WithDescription("Reactivates a deactivated user account using a valid reactivation token.")
+        .WithTags("Users")
+        .RequireAuthorization()
+        .Produces<TokenResponse>(200, "application/json")
+        .Produces(400)
+        .Produces(409)
+        .Produces(500);
 
     private static async Task<IResult> Handle(
         [FromQuery] string token,
@@ -69,7 +76,7 @@ public class ReactivateUserEndpoint : IEndpoint
                 emailConfirmed: "true",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
-            return Results.Ok(new ReactivateUserResponse
+            return Results.Ok(new TokenResponse
             {
                 Token = accessToken
             });
@@ -81,9 +88,4 @@ public class ReactivateUserEndpoint : IEndpoint
             return Results.InternalServerError("An internal error occurred.");
         }
     }
-}
-
-public class ReactivateUserResponse
-{
-    public string Token { get; set; }
 }

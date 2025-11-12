@@ -9,11 +9,17 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.ResendEmailConfirmation;
 
-public class ResendEmailConfirmationEndpoint : IEndpoint
+public abstract class ResendEmailConfirmationEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/resend-email-confirmation", Handle)
-        .WithSummary("Resends email confirmation.");
+        .WithSummary("Resends email confirmation.")
+        .WithDescription("Resends a confirmation email to users who have not yet verified their email address.")
+        .WithTags("Authentication")
+        .Produces<MessageResponse>(200, "application/json")
+        .Produces(400)
+        .Produces(404)
+        .Produces(500);
 
     private static async Task<IResult> Handle(
         [FromBody] ResendEmailConfirmationRequest request,
@@ -73,14 +79,9 @@ public class ResendEmailConfirmationEndpoint : IEndpoint
             return Results.InternalServerError();
         }
         
-        return Results.Ok(new ResendEmailConfirmationResponse
+        return Results.Ok(new MessageResponse
         {
             Message = "Account created successfully. Please check your email to verify your account."
         });
     }
-}
-
-public class ResendEmailConfirmationResponse
-{
-    public string Message { get; set; } = null!;
 }

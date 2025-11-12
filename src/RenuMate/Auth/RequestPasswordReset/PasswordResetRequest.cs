@@ -6,7 +6,6 @@ public class PasswordResetRequest
 {
     public string Email { get; set; } = null!;
 }
-
 public class PasswordResetRequestValidator : AbstractValidator<PasswordResetRequest>
 {
     public PasswordResetRequestValidator()

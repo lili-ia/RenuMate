@@ -7,8 +7,8 @@ public class CreateReminderRequest
     public int DaysBeforeRenewal { get; set; }  
     
     public TimeSpan NotifyTime { get; set; }
-    
-    public string Timezone { get; set; }
+
+    public string Timezone { get; set; } = null!;
 }
 
 public class CreateReminderRequestValidator : AbstractValidator<CreateReminderRequest>

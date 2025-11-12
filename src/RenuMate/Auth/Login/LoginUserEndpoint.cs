@@ -8,11 +8,15 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.Login;
 
-public class LoginUserEndpoint : IEndpoint
+public abstract class LoginUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/login", Handle)
-        .WithSummary("Logs new user in.");
+        .WithSummary("Logs a user in.")
+        .WithDescription("Validates user credentials and returns an access token if successful.")
+        .WithTags("Authentication")
+        .Produces<TokenResponse>(200, "application/json")
+        .Produces(401);
 
     private static async Task<IResult> Handle(
         [FromBody] LoginUserRequest request,
@@ -59,14 +63,9 @@ public class LoginUserEndpoint : IEndpoint
             emailConfirmed: user.IsEmailConfirmed ? "true" : "false",
             expiresAt: DateTime.UtcNow.AddHours(24));
         
-        return Results.Ok(new LoginUserResponse
+        return Results.Ok(new TokenResponse
         {
-            AccessToken = token
+            Token = token
         });
     }
-}
-
-public class LoginUserResponse
-{
-    public string AccessToken { get; set; }
 }

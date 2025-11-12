@@ -9,11 +9,20 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Reminders.Update;
 
-public class UpdateReminderEndpoint : IEndpoint
+public abstract class UpdateReminderEndpoint : IEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app) => app.
-        MapPut("api/subscriptions/{subscriptionId:guid}/reminders/{reminderId:guid}", Handle)
-        .RequireAuthorization("EmailConfirmed");
+    public static void Map(IEndpointRouteBuilder app) => app
+        .MapPut("api/subscriptions/{subscriptionId:guid}/reminders/{reminderId:guid}", Handle)
+        .RequireAuthorization("EmailConfirmed")
+        .WithSummary("Updates a reminder.")
+        .WithDescription("Updates the notify time or days-before-renewal for a specific reminder of a subscription.")
+        .WithTags("Reminders")
+        .Produces<UpdateReminderResponse>(200, "application/json")
+        .Produces(400)
+        .Produces(401)
+        .Produces(404)
+        .Produces(409)
+        .Produces(500);
     
      private static async Task<IResult> Handle(
         [FromRoute] Guid reminderId,
@@ -109,17 +118,4 @@ public class UpdateReminderEndpoint : IEndpoint
             return Results.InternalServerError("An internal error occurred.");
         }
     }
-}
-
-public class UpdateReminderResponse
-{
-    public Guid Id { get; set; }
-    
-    public Guid SubscriptionId { get; set; }
-
-    public int DaysBeforeRenewal { get; set; }  
-    
-    public TimeSpan NotifyTime { get; set; } 
-    
-    public DateTime NextReminder { get; set; } 
 }

@@ -9,11 +9,16 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.ResetPassword;
 
-public class ResetPasswordEndpoint : IEndpoint
+public abstract class ResetPasswordEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/reset-password", Handle)
-        .WithSummary("Resets password.");
+        .WithSummary("Resets a user's password.")
+        .WithDescription("Resets the user's password using a valid password reset token and returns a new access token upon success.")
+        .WithTags("Authentication")
+        .Produces<TokenResponse>(200, "application/json")
+        .Produces(400)
+        .Produces(500);
 
     private static async Task<IResult> Handle(
         [FromQuery] string token,
@@ -62,7 +67,6 @@ public class ResetPasswordEndpoint : IEndpoint
             return Results.BadRequest("Invalid or expired token.");
         }
         
-        
         var newHashedPassword = passwordHasher.HashPassword(request.NewPassword);
         
         try
@@ -77,7 +81,7 @@ public class ResetPasswordEndpoint : IEndpoint
                 emailConfirmed: user.IsEmailConfirmed ? "true" : "false",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
-            return Results.Ok(new ResetPasswordResponse
+            return Results.Ok(new TokenResponse
             {
                 Token = accessToken
             });
@@ -89,9 +93,4 @@ public class ResetPasswordEndpoint : IEndpoint
             return Results.InternalServerError("An internal error occurred.");;
         }
     }
-}
-
-public class ResetPasswordResponse
-{
-    public string Token { get; set; } = null!;
 }

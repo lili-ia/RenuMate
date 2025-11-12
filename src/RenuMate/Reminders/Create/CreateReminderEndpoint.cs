@@ -10,11 +10,20 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Reminders.Create;
 
-public class CreateReminderEndpoint : IEndpoint
+public abstract class CreateReminderEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/subscriptions/{subscriptionId:guid}/reminders", Handle)
-        .RequireAuthorization("EmailConfirmed");
+        .RequireAuthorization("EmailConfirmed")
+        .WithSummary("Creates a new reminder for a subscription.")
+        .WithDescription("Adds a reminder rule for a given subscription. A maximum of three reminder rules can be created per subscription.")
+        .WithTags("Reminders")
+        .Produces<CreateReminderResponse>(200, "application/json")
+        .Produces(400)
+        .Produces(401)
+        .Produces(404)
+        .Produces(409)
+        .Produces(500);
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid subscriptionId,
@@ -97,8 +106,6 @@ public class CreateReminderEndpoint : IEndpoint
                 _ => throw new InvalidOperationException("Unknown subscription plan")
             };
         }
-
-       
         
         var reminderRule = new ReminderRule
         {
@@ -137,17 +144,4 @@ public class CreateReminderEndpoint : IEndpoint
             return Results.InternalServerError("An internal error occurred.");
         }
     }
-}
-
-public class CreateReminderResponse
-{
-    public Guid Id { get; set; }
-    
-    public Guid SubscriptionId { get; set; }
-
-    public int DaysBeforeRenewal { get; set; }  
-    
-    public TimeSpan NotifyTime { get; set; } 
-    
-    public DateTime NextReminder { get; set; } 
 }

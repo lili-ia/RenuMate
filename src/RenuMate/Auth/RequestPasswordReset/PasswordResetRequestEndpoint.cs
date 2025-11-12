@@ -8,11 +8,16 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Auth.RequestPasswordReset;
 
-public class PasswordResetRequestEndpoint : IEndpoint
+public abstract class PasswordResetRequestEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/recover-password-request", Handle)
-        .WithSummary("Requests a password recover for user.");
+        .WithSummary("Request password recovery.")
+        .WithDescription("Sends a password reset link to the provided email address if the account exists.")
+        .WithTags("Authentication")
+        .Produces<MessageResponse>(200, "application/json")
+        .Produces(400)
+        .Produces(500);
 
     private static async Task<IResult> Handle(
         [FromBody] PasswordResetRequest request,
@@ -34,7 +39,7 @@ public class PasswordResetRequestEndpoint : IEndpoint
         
         if (user is null)
         {
-            return Results.Ok(new PasswordResetRequestResponse
+            return Results.Ok(new MessageResponse
             {
                 Message = "If an account exists, a password reset email was sent."
             });
@@ -73,14 +78,9 @@ public class PasswordResetRequestEndpoint : IEndpoint
             return Results.InternalServerError();
         }
         
-        return Results.Ok(new PasswordResetRequestResponse
+        return Results.Ok(new MessageResponse
         {
             Message = "If an account exists, a password reset email was sent."
         });
     }
-}
-
-public class PasswordResetRequestResponse
-{
-    public string Message { get; set; }
 }

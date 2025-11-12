@@ -1,6 +1,5 @@
 using RenuMate.Enums;
 using RenuMate.Events;
-using RenuMate.Extensions;
 
 namespace RenuMate.Entities;
 

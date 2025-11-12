@@ -13,7 +13,12 @@ public abstract class RegisterUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/auth/register", Handle)
-        .WithSummary("Registers a new user.");
+        .WithSummary("Registers a new user.")
+        .WithDescription("Creates a new user account, hashes the password, and sends an email confirmation link.")
+        .WithTags("Authentication")
+        .Produces<MessageResponse>(200, "application/json")
+        .Produces(409)
+        .Produces(500);
 
     private static async Task<IResult> Handle(
         [FromBody] RegisterUserRequest request,
@@ -91,14 +96,9 @@ public abstract class RegisterUserEndpoint : IEndpoint
             return Results.InternalServerError();
         }
         
-        return Results.Ok(new RegisterUserResponse
+        return Results.Ok(new MessageResponse
         {
             Message = "Account created successfully. Please check your email to verify your account."
         });
     }
-}
-
-public class RegisterUserResponse
-{
-    public string Message { get; set; }
 }

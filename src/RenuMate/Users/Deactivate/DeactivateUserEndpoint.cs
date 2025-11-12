@@ -6,16 +6,23 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Users.Deactivate;
 
-public class DeactivateUserEndpoint : IEndpoint
+public abstract class DeactivateUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapDelete("api/users", Handle)
-        .WithSummary("Deactivates user account.")
-        .RequireAuthorization();
+        .RequireAuthorization()
+        .WithSummary("Deactivate user account.")
+        .WithDescription("Sets the authenticated user's account to inactive.")
+        .WithTags("Users")
+        .Produces<MessageResponse>(200, "application/json")
+        .Produces(401)
+        .Produces(404)
+        .Produces(500);
 
     private static async Task<IResult> Handle(
         [FromServices] RenuMateDbContext db,
         [FromServices] IUserContext userContext,
+        [FromServices] ILogger<DeactivateUserEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
@@ -37,19 +44,16 @@ public class DeactivateUserEndpoint : IEndpoint
                 return Results.NotFound("User not found.");
             }
          
-            return Results.Ok(new DeactivateUserResponse
+            return Results.Ok(new MessageResponse
             {
                 Message = "Your account was successfully deactivated."
             });
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Error while deactivating user {UserId}.", userId);
+            
             return Results.InternalServerError("An internal error occurred.");
         }
     }
-}
-
-public class DeactivateUserResponse
-{
-    public string Message { get; set; } = null!;
 }

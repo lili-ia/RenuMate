@@ -8,11 +8,19 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Subscriptions.Update;
 
-public class UpdateSubscriptionEndpoint : IEndpoint
+public abstract class UpdateSubscriptionEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPut("api/subscriptions/{id:guid}", Handle)
-        .RequireAuthorization("EmailConfirmed");
+        .RequireAuthorization("EmailConfirmed")
+        .WithSummary("Update subscription.")
+        .WithDescription("Updates the details of a subscription owned by the authenticated user.")
+        .WithTags("Subscriptions")
+        .Produces<UpdateSubscriptionResponse>(200, "application/json")
+        .Produces(401)
+        .Produces(403)
+        .Produces(404)
+        .Produces(500);
 
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,

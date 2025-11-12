@@ -6,11 +6,18 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Subscriptions.SetMuteStatus;
 
-public class SetSubscriptionMuteStatusEndpoint : IEndpoint
+public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPatch("api/subscriptions/{id:guid}", Handle)
-        .RequireAuthorization("EmailConfirmed");
+        .RequireAuthorization("EmailConfirmed")
+        .WithSummary("Set subscription mute status.")
+        .WithDescription("Updates the IsMuted flag for a subscription owned by the authenticated user.")
+        .WithTags("Subscriptions")
+        .Produces(204)  
+        .Produces(401)
+        .Produces(404) 
+        .Produces(500); 
     
      private static async Task<IResult> Handle(
         [FromRoute] Guid id,

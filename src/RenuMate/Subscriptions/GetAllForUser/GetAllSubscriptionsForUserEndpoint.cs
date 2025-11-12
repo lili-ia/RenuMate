@@ -7,11 +7,17 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Subscriptions.GetAllForUser;
 
-public class GetAllSubscriptionsForUserEndpoint : IEndpoint
+public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/subscriptions", Handle)
-        .RequireAuthorization("EmailConfirmed");
+        .RequireAuthorization("EmailConfirmed")
+        .WithSummary("Get user subscriptions.")
+        .WithDescription("Returns a paginated list of subscriptions belonging to the authenticated user.")
+        .WithTags("Subscriptions")
+        .Produces<PaginatedResponse<SubscriptionDto>>(200, "application/json")
+        .Produces(401)
+        .Produces(500);
     
     private static async Task<IResult> Handle(
         [FromServices] IUserContext userContext,
