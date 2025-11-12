@@ -22,6 +22,18 @@ public class EmailSender : IEmailSender
 
         var receiver = new EmailAddress(to);
         var msg = MailHelper.CreateSingleEmail(from, receiver, subject,"", body);
+
+        var trackingSettings = new TrackingSettings
+        {
+            ClickTracking = new ClickTracking
+            {
+                Enable = false,
+                EnableText = false
+            }
+        };
+        
+        msg.TrackingSettings = trackingSettings;
+        
         var response = await client.SendEmailAsync(msg);
 
         return response.IsSuccessStatusCode;
