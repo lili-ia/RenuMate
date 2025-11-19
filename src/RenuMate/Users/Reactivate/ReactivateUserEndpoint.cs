@@ -12,7 +12,7 @@ namespace RenuMate.Users.Reactivate;
 public abstract class ReactivateUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapGet("api/users/me", Handle)
+        .MapPatch("api/users/me", Handle)
         .WithSummary("Reactivates user account.")
         .WithDescription("Reactivates a deactivated user account using a valid reactivation token.")
         .WithTags("Users")
