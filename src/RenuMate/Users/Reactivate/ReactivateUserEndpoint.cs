@@ -24,10 +24,10 @@ public abstract class ReactivateUserEndpoint : IEndpoint
 
     private static async Task<IResult> Handle(
         [FromQuery] string token,
-        [FromServices] IValidator<string> validator,
-        [FromServices] ITokenService tokenService,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] ILogger<ReactivateUserEndpoint> logger,
+        IValidator<string> validator,
+        ITokenService tokenService,
+        RenuMateDbContext db,
+        ILogger<ReactivateUserEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(token, cancellationToken);
@@ -41,26 +41,42 @@ public abstract class ReactivateUserEndpoint : IEndpoint
         
         if (principal == null)
         {
-            return Results.BadRequest("Invalid or expired token.");
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid token",
+                detail: "The reactivation token is invalid or has expired."
+            );
         }
 
         var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {
-            return Results.BadRequest("Invalid or expired token.");
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid token",
+                detail: "The reactivation token is invalid or has expired."
+            );
         }
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
         {
-            return Results.BadRequest("Invalid or expired token.");
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid token",
+                detail: "The reactivation token is invalid or has expired."
+            );
         }
 
         if (user.IsActive)
         {
-            return Results.Conflict("Your account is already active.");
+            return Results.Problem(
+                statusCode: 409,
+                title: "Conflict",
+                detail: "Your account is already active."
+            );
         }
         
         user.IsActive = true;
@@ -85,7 +101,11 @@ public abstract class ReactivateUserEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while reactivating user with {UserId}", user.Id);
             
-            return Results.InternalServerError("An internal error occurred.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal Server Error",
+                detail: "An internal error occurred while reactivating the account."
+            );
         }
     }
 }

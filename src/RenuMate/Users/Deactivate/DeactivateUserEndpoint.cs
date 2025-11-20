@@ -29,7 +29,11 @@ public abstract class DeactivateUserEndpoint : IEndpoint
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
         
         try
@@ -41,7 +45,11 @@ public abstract class DeactivateUserEndpoint : IEndpoint
             
             if (rows == 0)
             {
-                return Results.NotFound("User not found.");
+                return Results.Problem(
+                    statusCode: 404,
+                    title: "User not found",
+                    detail: "The authenticated user could not be found in the database."
+                );
             }
          
             return Results.Ok(new MessageResponse
@@ -53,7 +61,11 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while deactivating user {UserId}.", userId);
             
-            return Results.InternalServerError("An internal error occurred.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while deactivating your account."
+            );
         }
     }
 }

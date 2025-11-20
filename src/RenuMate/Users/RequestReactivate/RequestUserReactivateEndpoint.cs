@@ -21,11 +21,12 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
 
     private static async Task<IResult> Handle(
         [FromBody] ReactivateRequest request, 
-        [FromServices] RenuMateDbContext db,
-        [FromServices] ITokenService tokenService,
-        [FromServices] IConfiguration configuration,
-        [FromServices] IEmailSender emailSender,
-        [FromServices] IValidator<ReactivateRequest> validator,
+        RenuMateDbContext db,
+        ITokenService tokenService,
+        IConfiguration configuration,
+        IEmailSender emailSender,
+        IEmailTemplateService emailTemplateService,
+        IValidator<ReactivateRequest> validator,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -55,13 +56,17 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
             expiresAt: DateTime.UtcNow.AddHours(1));
 
         var link = $"{frontendUrl}/reactivate?token={Uri.EscapeDataString(token)}";
-        var body = $"<p>Click the link to reactivate your account:</p><p><a href='{link}'>Reactivate Account</a></p>";
+        var body = emailTemplateService.BuildUserReactivateMessage(user.Name, link);
 
-        var sentSuccess =  await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
+        var sent =  await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
 
-        if (!sentSuccess)
+        if (!sent)
         {
-            return Results.InternalServerError();
+            return Results.Problem(
+                statusCode: 500,
+                title: "Email Sending Failed",
+                detail: "Could not send the reactivation email."
+            );
         }
 
         return Results.Ok(new MessageResponse

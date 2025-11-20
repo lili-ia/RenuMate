@@ -21,11 +21,12 @@ public abstract class PasswordResetRequestEndpoint : IEndpoint
 
     private static async Task<IResult> Handle(
         [FromBody] PasswordResetRequest request,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] IConfiguration configuration,
-        [FromServices] IEmailSender emailSender,
-        [FromServices] ITokenService tokenService,
-        [FromServices] IValidator<PasswordResetRequest> validator,
+        RenuMateDbContext db,
+        IConfiguration configuration,
+        IEmailSender emailSender,
+        IEmailTemplateService emailTemplateService,
+        ITokenService tokenService,
+        IValidator<PasswordResetRequest> validator,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -35,7 +36,9 @@ public abstract class PasswordResetRequestEndpoint : IEndpoint
             return validation.ToFailureResult();
         }
         
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
+        var user = await db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
         
         if (user is null)
         {
@@ -43,13 +46,6 @@ public abstract class PasswordResetRequestEndpoint : IEndpoint
             {
                 Message = "If an account exists, a password reset email was sent."
             });
-        }
-        
-        var signingKey = configuration["Jwt:SigningKey"];
-
-        if (signingKey is null)
-        {
-            throw new InvalidOperationException("JWT signing key is not configured.");
         }
         
         var token = tokenService.CreateToken(
@@ -61,21 +57,18 @@ public abstract class PasswordResetRequestEndpoint : IEndpoint
         
         var frontendUrl = configuration["App:FrontendUrl"];
         
-        if (string.IsNullOrWhiteSpace(frontendUrl))
-        {
-            throw new InvalidOperationException("Frontend Url is not configured.");
-        }
-        
         var resetLink = $"{frontendUrl}/reset-password?token={Uri.EscapeDataString(token)}";
-
-        var body = $"<p>Click the link below to reset your password:</p>" +
-                   $"<p><a href='{resetLink}'>Reset Password</a></p>";
+        var body = emailTemplateService.BuildPasswordResetMessage(user.Name, resetLink);
         
-        var sentSuccess = await emailSender.SendEmailAsync(user.Email, "Password Reset", body);
+        var sent = await emailSender.SendEmailAsync(user.Email, "Password Reset", body);
         
-        if (!sentSuccess)
+        if (!sent)
         {
-            return Results.InternalServerError();
+            return Results.Problem(
+                statusCode: 500,
+                title: "Email sending failure",
+                detail: "Failed to send password reset email. Please try again later."
+            );
         }
         
         return Results.Ok(new MessageResponse

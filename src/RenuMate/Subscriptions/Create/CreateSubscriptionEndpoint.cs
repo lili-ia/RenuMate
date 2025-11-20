@@ -24,17 +24,21 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
     
     private static async Task<IResult> Handle(
         [FromBody] CreateSubscriptionRequest request,
-        [FromServices] IUserContext userContext,
-        [FromServices] IValidator<CreateSubscriptionRequest> validator,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] ILogger<CreateSubscriptionEndpoint> logger,
+        IUserContext userContext,
+        IValidator<CreateSubscriptionRequest> validator,
+        RenuMateDbContext db,
+        ILogger<CreateSubscriptionEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
         
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -63,27 +67,20 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
             UserId = userId
         };
         
-        var renewalDate = new DateTime();
-        switch (plan)
-        {
-            case SubscriptionPlan.Monthly:
-                renewalDate = request.StartDate.AddMonths(1);
-                break;
-            case SubscriptionPlan.Quarterly:
-                renewalDate = request.StartDate.AddMonths(3);
-                break;
-            case SubscriptionPlan.Annual:
-                renewalDate = request.StartDate.AddYears(1);
-                break;
-            case SubscriptionPlan.Custom when request.CustomPeriodInDays.HasValue:
-                renewalDate = request.StartDate.AddDays(request.CustomPeriodInDays.Value);
-                break;
-        }
-
-        subscription.RenewalDate = renewalDate;
-        
         try
         {
+            var renewalDate = plan switch
+            {
+                SubscriptionPlan.Monthly => request.StartDate.AddMonths(1),
+                SubscriptionPlan.Quarterly => request.StartDate.AddMonths(3),
+                SubscriptionPlan.Annual => request.StartDate.AddYears(1),
+                SubscriptionPlan.Custom when request.CustomPeriodInDays.HasValue => request.StartDate.AddDays(
+                    request.CustomPeriodInDays.Value),
+                _ => new DateTime()
+            };
+
+            subscription.RenewalDate = renewalDate;
+            
             await db.Subscriptions.AddAsync(subscription, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
 
@@ -98,11 +95,23 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
                 PicLink = subscription.PicLink
             });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid request",
+                detail: ex.Message
+            );
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error while creating subscription for user {UserId}.", userId);
             
-            return Results.InternalServerError("An internal error occurred.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while creating the subscription."
+            );
         }
     }
 }

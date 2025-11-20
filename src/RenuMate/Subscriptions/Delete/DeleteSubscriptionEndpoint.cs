@@ -21,16 +21,20 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,
-        [FromServices] IUserContext userContext,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] ILogger<DeleteSubscriptionEndpoint> logger,
+        IUserContext userContext,
+        RenuMateDbContext db,
+        ILogger<DeleteSubscriptionEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
 
         try
@@ -41,7 +45,11 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
 
             if (rows == 0)
             {
-                return Results.NotFound("Subscription not found.");
+                return Results.Problem(
+                    statusCode: 404,
+                    title: "Subscription not found",
+                    detail: "No subscription exists with the specified ID for the current user."
+                );
             }
 
             return Results.NoContent();
@@ -50,7 +58,11 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while deleting subscription {SubscriptionId}.", id);
             
-            return Results.InternalServerError("An internal error occurred.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while deleting the subscription."
+            );
         }
     }
 }

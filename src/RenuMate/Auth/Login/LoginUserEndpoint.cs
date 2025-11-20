@@ -16,15 +16,17 @@ public abstract class LoginUserEndpoint : IEndpoint
         .WithDescription("Validates user credentials and returns an access token if successful.")
         .WithTags("Authentication")
         .Produces<TokenResponse>(200, "application/json")
+        .Produces(400)
         .Produces(401);
 
     private static async Task<IResult> Handle(
         [FromBody] LoginUserRequest request,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] IPasswordHasher passwordHasher,
-        [FromServices] ITokenService tokenService,
-        [FromServices] IConfiguration configuration,
-        [FromServices] IValidator<LoginUserRequest> validator,
+        RenuMateDbContext db,
+        ILogger<LoginUserEndpoint> logger,
+        IPasswordHasher passwordHasher,
+        ITokenService tokenService,
+        IConfiguration configuration,
+        IValidator<LoginUserRequest> validator,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -40,20 +42,37 @@ public abstract class LoginUserEndpoint : IEndpoint
 
         if (user is null)
         {
-            return Results.Problem(detail: "Invalid email or password.", statusCode: 401);
+            logger.LogWarning("Login attempt failed for non-existent email: {Email}", request.Email);
+            
+            return Results.Problem(
+                statusCode: 401,
+                title: "Authentication failed",
+                detail: "Invalid email or password."
+            );
         }
         
         var passwordValid = passwordHasher.VerifyHashedPassword(request.Password, user.PasswordHash);
         
         if (!passwordValid)
         {
-            return Results.Problem(detail: "Invalid email or password.", statusCode: 401);
+            logger.LogWarning("Login attempt failed for user {UserId}: Invalid password.", user.Id);
+            
+            return Results.Problem(
+                statusCode: 401,
+                title: "Authentication failed",
+                detail: "Invalid email or password."
+            );
         }
 
         if (!user.IsActive)
         {
+            logger.LogWarning("Login attempt for deactivated user {UserId}.", user.Id);
+            
             return Results.Problem(
-                detail: "Your account is deactivated. Please reactivate to log in.", statusCode: 401);
+                statusCode: 401,
+                title: "Account deactivated",
+                detail: "Your account is deactivated. Please reactivate to log in."
+            );
         }
         
         var token = tokenService.CreateToken(
@@ -62,6 +81,8 @@ public abstract class LoginUserEndpoint : IEndpoint
             purpose: "Access",
             emailConfirmed: user.IsEmailConfirmed ? "true" : "false",
             expiresAt: DateTime.UtcNow.AddHours(24));
+        
+        logger.LogInformation("User {UserId} logged in successfully.", user.Id);
         
         return Results.Ok(new TokenResponse
         {

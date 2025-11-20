@@ -16,8 +16,7 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
         .WithDescription("Returns a paginated list of subscriptions belonging to the authenticated user.")
         .WithTags("Subscriptions")
         .Produces<PaginatedResponse<SubscriptionDto>>(200, "application/json")
-        .Produces(401)
-        .Produces(500);
+        .Produces(401);
     
     private static async Task<IResult> Handle(
         [FromServices] IUserContext userContext,
@@ -30,7 +29,11 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
 
         var totalCount = await db.Subscriptions

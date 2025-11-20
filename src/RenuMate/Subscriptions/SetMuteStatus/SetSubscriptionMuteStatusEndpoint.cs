@@ -22,16 +22,20 @@ public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
      private static async Task<IResult> Handle(
         [FromRoute] Guid id,
         [FromBody] SetSubscriptionMuteStatusRequest request,
-        [FromServices] IUserContext userContext,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] ILogger<SetSubscriptionMuteStatusEndpoint> logger,
+        IUserContext userContext,
+        RenuMateDbContext db,
+        ILogger<SetSubscriptionMuteStatusEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
         
         try
@@ -43,7 +47,11 @@ public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
 
             if (rows == 0)
             {
-                return Results.NotFound("Subscription not found.");
+                return Results.Problem(
+                    statusCode: 404,
+                    title: "Subscription not found",
+                    detail: "No subscription exists with the specified ID for the current user."
+                );
             }
 
             return Results.NoContent();
@@ -52,7 +60,11 @@ public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while setting mute status for subscription {SubscriptionId}.", id);
             
-            return Results.InternalServerError("An internal error occurred.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while setting mute status."
+            );
         }
     }
 }

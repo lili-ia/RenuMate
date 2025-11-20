@@ -17,6 +17,7 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
         .WithDescription("Updates the details of a subscription owned by the authenticated user.")
         .WithTags("Subscriptions")
         .Produces<UpdateSubscriptionResponse>(200, "application/json")
+        .Produces(400)
         .Produces(401)
         .Produces(403)
         .Produces(404)
@@ -25,17 +26,21 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,
         [FromBody] UpdateSubscriptionRequest request,
-        [FromServices] IUserContext userContext,
-        [FromServices] IValidator<UpdateSubscriptionRequest> validator,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] ILogger<UpdateSubscriptionEndpoint> logger,
+        IUserContext userContext,
+        IValidator<UpdateSubscriptionRequest> validator,
+        RenuMateDbContext db,
+        ILogger<UpdateSubscriptionEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
         
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -49,7 +54,11 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
 
         if (subscription is null)
         {
-            return Results.NotFound("Subscription not found.");
+            return Results.Problem(
+                statusCode: 403,
+                title: "Forbidden",
+                detail: "You do not have permission to update this subscription."
+            );
         }
 
         if (subscription.UserId != userId)
@@ -59,23 +68,16 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
         
         Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var type);
         Enum.TryParse<Currency>(request.Currency, true, out var currency);
-        
-        var renewalDate = new DateTime();
-        switch (type)
+
+        var renewalDate = type switch
         {
-            case SubscriptionPlan.Monthly:
-                renewalDate = request.StartDate.AddMonths(1);
-                break;
-            case SubscriptionPlan.Quarterly:
-                renewalDate = request.StartDate.AddMonths(3);
-                break;
-            case SubscriptionPlan.Annual:
-                renewalDate = request.StartDate.AddYears(1);
-                break;
-            case SubscriptionPlan.Custom when request.CustomPeriodInDays.HasValue:
-                renewalDate = request.StartDate.AddDays(request.CustomPeriodInDays.Value);
-                break;
-        }
+            SubscriptionPlan.Monthly => request.StartDate.AddMonths(1),
+            SubscriptionPlan.Quarterly => request.StartDate.AddMonths(3),
+            SubscriptionPlan.Annual => request.StartDate.AddYears(1),
+            SubscriptionPlan.Custom when request.CustomPeriodInDays.HasValue => request.StartDate.AddDays(
+                request.CustomPeriodInDays.Value),
+            _ => new DateTime()
+        };
 
         subscription.Name = request.Name;
         subscription.Plan = type;
@@ -107,7 +109,11 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while updating subscription {SubscriptionId}.", id);
             
-            return Results.InternalServerError("An internal error occurred.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while updating the subscription."
+            );
         }
     }
 }

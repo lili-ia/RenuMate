@@ -19,15 +19,19 @@ public abstract class GetUserInfoEndpoint : IEndpoint
         .Produces(404);
 
     private static async Task<IResult> Handle(
-        [FromServices] RenuMateDbContext db,
-        [FromServices] IUserContext userContext,
+        RenuMateDbContext db,
+        IUserContext userContext,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
 
         var info = await db.Users
@@ -45,7 +49,11 @@ public abstract class GetUserInfoEndpoint : IEndpoint
 
         if (info is null)
         {
-            return Results.NotFound(new { Error = "User not found."});
+            return Results.Problem(
+                statusCode: 404,
+                title: "User not found",
+                detail: "The authenticated user could not be found in the database."
+            );
         }
         
         return Results.Ok(info);

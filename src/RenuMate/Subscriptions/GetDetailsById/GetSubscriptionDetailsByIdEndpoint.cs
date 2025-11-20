@@ -17,20 +17,23 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
         .WithTags("Subscriptions")
         .Produces<SubscriptionDetailsDto>(200, "application/json")
         .Produces(401)
-        .Produces(404)
-        .Produces(500);
+        .Produces(404);
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,
-        [FromServices] IUserContext userContext,
-        [FromServices] RenuMateDbContext db,
+        IUserContext userContext,
+        RenuMateDbContext db,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
 
         var subscription = await db.Subscriptions
@@ -41,7 +44,11 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
 
         if (subscription is null)
         {
-            return Results.NotFound("Subscription not found.");
+            return Results.Problem(
+                statusCode: 404,
+                title: "Subscription not found",
+                detail: "No subscription exists with the specified ID for the current user."
+            );
         }
 
         return Results.Ok(subscription);

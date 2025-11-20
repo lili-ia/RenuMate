@@ -17,8 +17,7 @@ public abstract class GetAllRemindersForSubscriptionEndpoint
         .Produces<List<ReminderDto>>(200, "application/json")
         .Produces(401)
         .Produces(403)
-        .Produces(404)
-        .Produces(500);
+        .Produces(404);
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid subscriptionId,
@@ -30,7 +29,11 @@ public abstract class GetAllRemindersForSubscriptionEndpoint
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
 
         var subscription = await db.Subscriptions
@@ -41,12 +44,20 @@ public abstract class GetAllRemindersForSubscriptionEndpoint
 
         if (subscription is null)
         {
-            return Results.NotFound("Subscription not found.");
+            return Results.Problem(
+                statusCode: 404,
+                title: "Subscription not found",
+                detail: "No subscription exists with the specified ID."
+            );
         }
 
         if (subscription.UserId != userId)
         {
-            return Results.Forbid();
+            return Results.Problem(
+                statusCode: 403,
+                title: "Forbidden",
+                detail: "You do not have access to this subscription."
+            );
         }
         
         var reminders = await db.ReminderRules

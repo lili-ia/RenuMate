@@ -21,10 +21,10 @@ public abstract class ConfirmEmailEndpoint : IEndpoint
 
     private static async Task<IResult> Handle(
         [FromBody] ConfirmEmailRequest request,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] ITokenService tokenService,
-        [FromServices] ILogger<ConfirmEmailEndpoint> logger,
-        [FromServices] IValidator<string> validator,
+        RenuMateDbContext db,
+        ITokenService tokenService,
+        ILogger<ConfirmEmailEndpoint> logger,
+        IValidator<string> validator,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(request.Token, cancellationToken);
@@ -38,23 +38,32 @@ public abstract class ConfirmEmailEndpoint : IEndpoint
         
         if (principal == null)
         {
-            return Results.BadRequest("Invalid or expired token.");
+            return TokenProblem("The provided confirmation token is invalid or has expired.");
         }
 
         var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {
-            return Results.BadRequest("Invalid or expired token.");
+            return TokenProblem("The token contains an invalid user identifier.");
         }
-
+        
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-        if (user is null || user.IsEmailConfirmed)
+        if (user is null)
         {
-            return Results.BadRequest("Invalid or expired token.");
+            logger.LogWarning("Email confirmation attempt failed for user {UserId}: User does not exist in db.", userId);
+            
+            return TokenProblem("No user exists for the provided token.");
         }
 
+        if (user.IsEmailConfirmed)
+        {
+            logger.LogWarning("Email confirmation attempt failed for user {UserId}: Email already confirmed.", userId);
+            
+            return TokenProblem("The email address has already been confirmed.");
+        }
+        
         user.IsEmailConfirmed = true;
         
         try
@@ -68,6 +77,8 @@ public abstract class ConfirmEmailEndpoint : IEndpoint
                 emailConfirmed: "true",
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
+            logger.LogInformation("User {UserId} successfully confirmed their email.", userId);
+            
             return Results.Ok(new TokenResponse
             {
                 Token = accessToken
@@ -75,9 +86,20 @@ public abstract class ConfirmEmailEndpoint : IEndpoint
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error while confirming email for user {UserId}", userId);
+            logger.LogError(ex, "Error while confirming email for user {UserId}.", userId);
             
-            return Results.BadRequest("Invalid or expired token.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while confirming the email."
+            );
         }
     }
+
+    private static IResult TokenProblem(string detail = "Invalid or expired token") =>
+        Results.Problem(
+            statusCode: 400,
+            title: "Invalid token",
+            detail: detail
+        );
 }

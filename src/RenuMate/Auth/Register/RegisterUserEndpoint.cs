@@ -17,6 +17,7 @@ public abstract class RegisterUserEndpoint : IEndpoint
         .WithDescription("Creates a new user account, hashes the password, and sends an email confirmation link.")
         .WithTags("Authentication")
         .Produces<MessageResponse>(200, "application/json")
+        .Produces(400)
         .Produces(409)
         .Produces(500);
 
@@ -27,6 +28,7 @@ public abstract class RegisterUserEndpoint : IEndpoint
         IConfiguration configuration,
         ITokenService tokenService,
         IEmailSender emailSender,
+        IEmailTemplateService emailTemplateService,
         IValidator<RegisterUserRequest> validator,
         ILogger<RegisterUserEndpoint> logger,
         CancellationToken cancellationToken = default)
@@ -42,7 +44,13 @@ public abstract class RegisterUserEndpoint : IEndpoint
 
         if (userExists)
         {
-            return Results.Conflict("User with this email already registered.");
+            logger.LogWarning("Registration attempt for existing email: {Email}", request.Email);
+            
+            return Results.Problem(
+                statusCode: 409,
+                title: "Email already registered",
+                detail: "A user with this email already exists."
+            );
         }
 
         var hashedPassword = passwordHasher.HashPassword(request.Password);
@@ -62,12 +70,18 @@ public abstract class RegisterUserEndpoint : IEndpoint
         {
             await db.Users.AddAsync(user, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("User {UserId} registered successfully.", user.Id);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error while registering user with email {Email}", request.Email);
 
-            return Results.InternalServerError("An internal error occurred.");
+            logger.LogError("Frontend URL is not configured.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Server error",
+                detail: "Internal server error."
+            );
         }
         
         var token = tokenService.CreateToken(
@@ -78,27 +92,25 @@ public abstract class RegisterUserEndpoint : IEndpoint
             expiresAt: DateTime.UtcNow.AddHours(24));
         
         var frontendUrl = configuration["App:FrontendUrl"];
-
-        if (string.IsNullOrWhiteSpace(frontendUrl))
-        {
-            throw new InvalidOperationException("Frontend Url is not configured.");
-        }
-        
         var confirmLink = $"{frontendUrl}/confirm-email?token={Uri.EscapeDataString(token)}";
-        
-        var body = $"<p>Please confirm your email by clicking the link below:</p>" +
-                   $"<p><a href='{confirmLink}'>Confirm Email</a></p>";
+        var body = emailTemplateService.BuildConfirmEmailMessage(confirmLink);
 
-        var sentSuccess = await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
-        
-        if (!sentSuccess)
+        var sent = await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
+
+        if (sent)
         {
-            return Results.InternalServerError();
+            return Results.Ok(new MessageResponse
+            {
+                Message = "Account created successfully. Please check your email to verify your account."
+            });
         }
+            
+        logger.LogError("Failed to send confirmation email to {Email}", request.Email);
         
-        return Results.Ok(new MessageResponse
-        {
-            Message = "Account created successfully. Please check your email to verify your account."
-        });
+        return Results.Problem(
+            statusCode: 500,
+            title: "Email delivery failed",
+            detail: "Could not send confirmation email. Please try again later."
+        );
     }
 }

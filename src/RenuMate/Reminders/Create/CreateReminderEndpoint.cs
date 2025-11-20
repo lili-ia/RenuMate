@@ -28,17 +28,21 @@ public abstract class CreateReminderEndpoint : IEndpoint
     private static async Task<IResult> Handle(
         [FromRoute] Guid subscriptionId,
         [FromBody] CreateReminderRequest request,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] IValidator<CreateReminderRequest> validator,
-        [FromServices] IUserContext userContext,
-        [FromServices] ILogger<CreateReminderEndpoint> logger,
+        RenuMateDbContext db,
+        IValidator<CreateReminderRequest> validator,
+        IUserContext userContext,
+        ILogger<CreateReminderEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
         
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -55,10 +59,27 @@ public abstract class CreateReminderEndpoint : IEndpoint
 
         if (subscription is null)
         {
-            return Results.NotFound("Subscription not found.");
+            return Results.Problem(
+                statusCode: 404,
+                title: "Subscription not found",
+                detail: "No subscription found with the specified ID for the current user."
+            );
         }
         
-        var userTz = TimeZoneInfo.FindSystemTimeZoneById(request.Timezone);
+        TimeZoneInfo userTz;
+        try
+        {
+            userTz = TimeZoneInfo.FindSystemTimeZoneById(request.Timezone);
+        }
+        catch (Exception)
+        {
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid timezone",
+                detail: $"The timezone '{request.Timezone}' is not valid."
+            );
+        }
+        
         var today = DateTime.Today;
 
         var localDateTime = new DateTime(
@@ -78,16 +99,24 @@ public abstract class CreateReminderEndpoint : IEndpoint
 
         if (similarExists)
         {
-            return Results.Conflict("Similar reminder rule already exists.");
+            return Results.Problem(
+                statusCode: 409,
+                title: "Reminder already exists",
+                detail: "A reminder with the same time and days-before-renewal already exists for this subscription."
+            );
         }
 
         var remindersCount = await db.ReminderRules
             .Where(r => r.SubscriptionId == subscriptionId)
             .CountAsync(cancellationToken);
 
-        if (remindersCount == 3)
+        if (remindersCount >= 3)
         {
-            return Results.Conflict("You can not create more than 3 reminders for each subscription.");
+            return Results.Problem(
+                statusCode: 409,
+                title: "Maximum reminders reached",
+                detail: "You cannot create more than 3 reminders for a single subscription."
+            );
         }
 
         var nextReminder = subscription.RenewalDate
@@ -138,10 +167,13 @@ public abstract class CreateReminderEndpoint : IEndpoint
         }
         catch (Exception ex)
         {
-            logger.LogError(
-                ex, "Error while creating reminder for subscription {SubscriptionId}.", subscriptionId);
+            logger.LogError(ex, "Error while creating reminder for subscription {SubscriptionId}.", subscriptionId);
             
-            return Results.InternalServerError("An internal error occurred.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while creating the reminder."
+            );
         }
     }
 }

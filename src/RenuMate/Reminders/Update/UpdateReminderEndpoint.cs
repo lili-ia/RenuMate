@@ -28,17 +28,21 @@ public abstract class UpdateReminderEndpoint : IEndpoint
         [FromRoute] Guid reminderId,
         [FromRoute] Guid subscriptionId,
         [FromBody] UpdateReminderRequest request,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] IValidator<UpdateReminderRequest> validator,
-        [FromServices] IUserContext userContext,
-        [FromServices] ILogger<UpdateReminderEndpoint> logger,
+        RenuMateDbContext db,
+        IValidator<UpdateReminderRequest> validator,
+        IUserContext userContext,
+        ILogger<UpdateReminderEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User is not authenticated."
+            );
         }
         
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -55,7 +59,11 @@ public abstract class UpdateReminderEndpoint : IEndpoint
 
         if (subscription is null)
         {
-            return Results.NotFound("Subscription not found.");
+            return Results.Problem(
+                statusCode: 404,
+                title: "Subscription not found",
+                detail: "No subscription exists with the specified ID for the current user."
+            );
         }
 
         var similarExists = await db.ReminderRules
@@ -66,7 +74,11 @@ public abstract class UpdateReminderEndpoint : IEndpoint
 
         if (similarExists)
         {
-            return Results.Conflict("Similar reminder rule already exists.");
+            return Results.Problem(
+                statusCode: 409,
+                title: "Reminder conflict",
+                detail: "A reminder with the same time and days-before-renewal already exists for this subscription."
+            );
         }
 
         var nextReminder = subscription.RenewalDate
@@ -98,7 +110,11 @@ public abstract class UpdateReminderEndpoint : IEndpoint
 
             if (rows == 0)
             {
-                return Results.NotFound("Reminder not found.");
+                return Results.Problem(
+                    statusCode: 404,
+                    title: "Reminder not found",
+                    detail: "No reminder exists with the specified ID for this subscription."
+                );
             }
             
             return Results.Ok(new UpdateReminderResponse
@@ -112,10 +128,13 @@ public abstract class UpdateReminderEndpoint : IEndpoint
         }
         catch (Exception ex)
         {
-            logger.LogError(
-                ex, "Error while creating reminder for subscription {SubscriptionId}.", subscriptionId);
+            logger.LogError(ex, "Error while creating reminder for subscription {SubscriptionId}.", subscriptionId);
             
-            return Results.InternalServerError("An internal error occurred.");
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while updating the reminder."
+            );
         }
     }
 }

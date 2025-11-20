@@ -28,6 +28,7 @@ public abstract class ResendEmailConfirmationEndpoint : IEndpoint
         IConfiguration configuration,
         ITokenService tokenService,
         IEmailSender emailSender,
+        IEmailTemplateService emailTemplateService,
         IValidator<ResendEmailConfirmationRequest> validator,
         ILogger<RegisterUserEndpoint> logger,
         CancellationToken cancellationToken = default)
@@ -45,12 +46,20 @@ public abstract class ResendEmailConfirmationEndpoint : IEndpoint
 
         if (user is null)
         {
-            return Results.NotFound("User not found.");
+            return Results.Problem(
+                statusCode: 404,
+                title: "User not found",
+                detail: "No account exists with the provided email."
+            );
         }
         
         if (user.IsEmailConfirmed)
         {
-            return Results.BadRequest("Users with this email already confirmed email.");
+            return Results.Problem(
+                statusCode: 400,
+                title: "Email already confirmed",
+                detail: "This email address has already been confirmed."
+            );
         }
         
         var token = tokenService.CreateToken(
@@ -61,22 +70,19 @@ public abstract class ResendEmailConfirmationEndpoint : IEndpoint
             expiresAt: DateTime.UtcNow.AddHours(24));
         
         var frontendUrl = configuration["App:FrontendUrl"];
-
-        if (string.IsNullOrWhiteSpace(frontendUrl))
-        {
-            throw new InvalidOperationException("Frontend Url is not configured.");
-        }
         
         var confirmLink = $"{frontendUrl}/confirm-email?token={Uri.EscapeDataString(token)}";
-        
-        var body = $"<p>Please confirm your email by clicking the link below:</p>" +
-                   $"<p><a href='{confirmLink}'>Confirm Email</a></p>";
+        var body = emailTemplateService.BuildConfirmEmailMessage(confirmLink);
 
-        var sentSuccess = await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
+        var sent = await emailSender.SendEmailAsync(request.Email, "Confirm your email", body);
         
-        if (!sentSuccess)
+        if (!sent)
         {
-            return Results.InternalServerError();
+            return Results.Problem(
+                statusCode: 500,
+                title: "Email sending failed",
+                detail: "Failed to send the confirmation email. Please try again later."
+            );
         }
         
         return Results.Ok(new MessageResponse

@@ -48,23 +48,35 @@ public abstract class ResetPasswordEndpoint : IEndpoint
         
         var principal = tokenService.ValidateToken(token, expectedPurpose: "ConfirmEmail");
         
-        if (principal == null)
+        if (principal is null)
         {
-            return Results.BadRequest("Invalid or expired token.");
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid or expired token",
+                detail: "The password reset token is invalid or has expired."
+            );
         }
 
         var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         
         if (!Guid.TryParse(stringUserId, out var userId))
         {
-            return Results.BadRequest("Invalid or expired token.");
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid token",
+                detail: "The token does not contain a valid user identifier."
+            );
         }
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
         {
-            return Results.BadRequest("Invalid or expired token.");
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid token",
+                detail: "No user exists for the given token."
+            );
         }
         
         var newHashedPassword = passwordHasher.HashPassword(request.NewPassword);
@@ -75,7 +87,7 @@ public abstract class ResetPasswordEndpoint : IEndpoint
             await db.SaveChangesAsync(cancellationToken);
             
             var accessToken = tokenService.CreateToken(
-                userId: user.Id.ToString(),
+                userId: stringUserId,
                 email: user.Email,
                 purpose: "Access",
                 emailConfirmed: user.IsEmailConfirmed ? "true" : "false",
@@ -90,7 +102,11 @@ public abstract class ResetPasswordEndpoint : IEndpoint
         {
             logger.LogError(ex, "Error while resetting password for user {UserId}.", user.Id);
 
-            return Results.InternalServerError("An internal error occurred.");;
+            return Results.Problem(
+                statusCode: 500,
+                title: "Internal server error",
+                detail: "An unexpected error occurred while resetting the password."
+            );
         }
     }
 }

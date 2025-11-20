@@ -100,6 +100,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddLogging();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.Configure<EmailSenderOptions>(builder.Configuration.GetSection("EmailSender"));
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IUserContext, UserContext>();
@@ -116,6 +117,7 @@ builder.Services.AddHangfireServer();
 var app = builder.Build();
 
 using var scope = app.Services.CreateScope();
+var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 var db = scope.ServiceProvider.GetRequiredService<RenuMateDbContext>();
 
 var retries = 10;
@@ -124,13 +126,18 @@ while (retries > 0)
     try
     {
         db.Database.Migrate();
-        Console.WriteLine("Database ready.");
+        logger.LogInformation("Database migrated successfully.");
+        break;
+    }
+    catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+    {
+        logger.LogWarning("Table already exists: {Message}", ex.Message);
         break;
     }
     catch (Exception ex)
     {
         retries--;
-        Console.WriteLine($"Database not ready, retrying... {retries} attempts left.");
+        logger.LogWarning(ex, "Database not ready, retrying... {Retries} attempts left.", retries);
         Thread.Sleep(5000);
     }
 }

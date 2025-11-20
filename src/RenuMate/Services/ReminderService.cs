@@ -10,12 +10,18 @@ public class ReminderService : IReminderService
     private readonly RenuMateDbContext _db;
     private readonly IEmailSender _emailService;
     private readonly ILogger<ReminderService> _logger;
+    private readonly IEmailTemplateService _emailTemplateService;
 
-    public ReminderService(RenuMateDbContext db, IEmailSender emailService, ILogger<ReminderService> logger)
+    public ReminderService(
+        RenuMateDbContext db, 
+        IEmailSender emailService, 
+        ILogger<ReminderService> logger, 
+        IEmailTemplateService emailTemplateService)
     {
         _db = db;
         _emailService = emailService;
         _logger = logger;
+        _emailTemplateService = emailTemplateService;
     }
 
     public async Task ProcessDueRemindersAsync()
@@ -44,23 +50,20 @@ public class ReminderService : IReminderService
 
             var subject = $"Reminder: Your subscription \"{subscription.Name}\" is active";
 
-            var body = @$"
-                    <p>Hi, {subscription.User.Name}!
-                    This is a friendly reminder about your subscription <strong>{subscription.Name}</strong>.</p>
-                    <p>Subscription details:</p>
-                    <ul>
-                        <li>Plan: {subscription.Plan}</li>
-                        <li>Start Date: {subscription.StartDate:dd.MM.yyyy}</li>
-                        <li>Renewal Date: {subscription.RenewalDate:dd.MM.yyyy}</li>
-                        <li>Cost: {subscription.Cost} {subscription.Currency}</li>
-                        <li>Period: {period}</li>
-                        <li>Note: {note}</li>
-                    </ul>
-                    <p>Thank you for using our service!</p>";
+            var body = _emailTemplateService.BuildSubscriptionReminderEmail(
+                userName: subscription.User.Name,
+                subscriptionName: subscription.Name,
+                plan: subscription.Plan.ToString(),
+                startDate: subscription.StartDate,
+                renewalDate: subscription.RenewalDate,
+                cost: subscription.Cost,
+                currency: subscription.Currency.ToString(),
+                period: period,
+                note: note);
+                
+            var sent = await _emailService.SendEmailAsync(email, subject, body);
 
-            var sentSuccess = await _emailService.SendEmailAsync(email, subject, body);
-
-            if (sentSuccess)
+            if (sent)
             {
                 o.IsSent = true;
                 o.SentAt = now;

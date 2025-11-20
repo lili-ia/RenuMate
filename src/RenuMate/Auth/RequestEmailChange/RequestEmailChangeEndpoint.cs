@@ -17,7 +17,7 @@ public abstract class RequestEmailChangeEndpoint : IEndpoint
         .WithDescription("Sends a verification link to the new email address for confirmation.")
         .WithTags("Authentication")
         .Produces<MessageResponse>(200, "application/json")
-        .Produces(400) 
+        .Produces(400)
         .Produces(401) 
         .Produces(404)
         .Produces(500);
@@ -31,6 +31,7 @@ public abstract class RequestEmailChangeEndpoint : IEndpoint
         IUserContext userContext,
         IValidator<EmailChangeRequest> validator,
         IEmailSender emailSender,
+        IEmailTemplateService emailTemplateService,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
@@ -44,7 +45,11 @@ public abstract class RequestEmailChangeEndpoint : IEndpoint
 
         if (userId == Guid.Empty)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                statusCode: 401,
+                title: "Unauthorized",
+                detail: "User authentication context is missing."
+            );
         }
         
         logger.LogInformation("User {UserId} requested email change to {NewEmail}", userId, request.NewEmail);
@@ -55,7 +60,11 @@ public abstract class RequestEmailChangeEndpoint : IEndpoint
 
         if (user == null)
         {
-            return Results.NotFound(new { Error = "User not found." });
+            return Results.Problem(
+                statusCode: 404,
+                title: "User not found",
+                detail: "The requested user does not exist."
+            );
         }
         
         var emailExists = await db.Users
@@ -63,11 +72,21 @@ public abstract class RequestEmailChangeEndpoint : IEndpoint
         
         if (emailExists)
         {
-            return Results.BadRequest(new { Error = "Email is already in use." });
+            return Results.Problem(
+                statusCode: 400,
+                title: "Email already in use",
+                detail: "The provided email address is already registered."
+            );
         }
         
         if (string.Equals(user.Email, request.NewEmail, StringComparison.OrdinalIgnoreCase))
-            return Results.BadRequest(new { Error = "New email must be different from the current one." });
+        {
+            return Results.Problem(
+                statusCode: 400,
+                title: "Invalid email",
+                detail: "The new email must be different from the current email address."
+            );
+        }
         
         var token = tokenService.CreateToken(
             userId: userId.ToString(),
@@ -79,21 +98,23 @@ public abstract class RequestEmailChangeEndpoint : IEndpoint
         var frontendUrl = configuration["App:FrontendUrl"];
 
         var confirmLink = $"{frontendUrl}/confirm-email?token={Uri.EscapeDataString(token)}";
+        var body = emailTemplateService.BuildEmailChangeConfirmationMessage(
+            user.Name, 
+            request.NewEmail, 
+            confirmLink);
         
-        var body = $"""
-                        <p>Hello {user.Name},</p>
-                        <p>You requested to change your email address to <b>{request.NewEmail}</b>.</p>
-                        <p>Please confirm your new email by clicking the link below:</p>
-                        <p><a href="{confirmLink}">Confirm Email Change</a></p>
-                        <p>This link will expire in 24 hours.</p>
-                        <p>If you didn’t request this change, you can safely ignore this email.</p>
-                    """;
+        var sent = await emailSender.SendEmailAsync(
+            request.NewEmail, 
+            "Confirm your new email", 
+            body);
         
-        var sentSuccess = await emailSender.SendEmailAsync(request.NewEmail, "Confirm your new email", body);
-        
-        if (!sentSuccess)
+        if (!sent)
         {
-            return Results.InternalServerError();
+            return Results.Problem(
+                statusCode: 500,
+                title: "Email sending failure",
+                detail: "Failed to send the email change confirmation email. Please try again later."
+            );
         }
         
         return Results.Ok(new MessageResponse
