@@ -1,7 +1,7 @@
 using System.Reflection;
-using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Auth0.ManagementApi;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -15,14 +15,77 @@ using IEmailSender = RenuMate.Services.Contracts.IEmailSender;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
-using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using RenuMate.Converters;
+using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var configuration = builder.Configuration;
 var connectionString = configuration.GetConnectionString("DefaultConnection");
+
+builder.Services.AddMemoryCache();
+
+builder.Services.AddScoped<IManagementApiClient>(_ => 
+    new ManagementApiClient(string.Empty, new Uri($"https://{configuration["Auth0:Domain"]}/api/v2")));
+
+builder.Services.AddScoped<IAuth0Service, Auth0Service>();
+
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.Authority = $"https://{builder.Configuration["Auth0:Domain"]}/";
+        options.Audience = builder.Configuration["Auth0:Audience"];
+
+        if (builder.Environment.IsDevelopment())
+        {
+            options.RequireHttpsMetadata = false;
+        }
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = $"https://{builder.Configuration["Auth0:Domain"]}/",
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Auth0:Audience"],
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true
+        };
+            
+        options.Events = new JwtBearerEvents
+        {
+            OnForbidden = async context =>
+            {
+                var problem = new ProblemDetails
+                {
+                    Title = "Email not verified",
+                    Status = StatusCodes.Status403Forbidden,
+                    Detail = "You must verify your email address before accessing this resource.",
+                    Instance = context.Request.Path
+                };
+                await context.Response.WriteAsJsonAsync(problem);
+            },
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("VerifiedEmailOnly", policy => 
+    {
+        policy.RequireAssertion(context => 
+        {
+            var emailVerifiedClaim = context.User.FindFirst("http://renumate.online/email_verified");
+
+            return emailVerifiedClaim != null && 
+                   emailVerifiedClaim.Value.Equals("true", StringComparison.OrdinalIgnoreCase);
+        });
+    });
+});
 
 builder.Services.AddCors(options =>
 {
@@ -53,12 +116,7 @@ builder.Services.Configure<JsonOptions>(options =>
     options.SerializerOptions.Converters.Add(new UtcDateTimeConverter());
 });
 
-builder.Services.AddAuthentication();
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("EmailConfirmed", policy => 
-        policy.RequireAssertion(context => context.User.HasClaim("emailconfirmed", "true")));
-});
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -76,23 +134,7 @@ builder.Services.AddDbContext<RenuMateDbContext>(options =>
 });
 
 builder.Services.AddOpenApi();
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = configuration["Jwt:Issuer"],
-            ValidAudience = configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(configuration["Jwt:SigningKey"]))
-        };
 
-        options.MapInboundClaims = false;
-    });
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {

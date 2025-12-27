@@ -2,15 +2,17 @@ namespace RenuMate.Entities;
 
 public class User : BaseEntity
 {
-    public string Email { get; set; }
+    public required string Auth0Id { get; set; }
     
-    public string Name { get; set; }
+    public required string Email { get; set; }
+    
+    public required string Name{ get; set; }
 
-    public string PasswordHash { get; set; }
-
-    public bool IsEmailConfirmed { get; set; }
+    public bool EmailConfirmed { get; set; }
 
     public bool IsActive { get; set; }
+    
+    public bool IsMetadataSynced { get; set; } = false;
 
-    public ICollection<Subscription> Subscriptions { get; set; }
+    public ICollection<Subscription> Subscriptions { get; set; } = [];
 }

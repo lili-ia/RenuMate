@@ -59,17 +59,21 @@ public class RenuMateDbContext : DbContext
             
             entity.HasIndex(e => e.Email)
                 .IsUnique();
+
+            entity.HasIndex(e => e.Auth0Id)
+                .IsUnique();
             
             entity.Property(e => e.Email)
+                .IsRequired()
+                .HasMaxLength(255);
+            
+            entity.Property(e => e.Auth0Id)
                 .IsRequired()
                 .HasMaxLength(255);
 
             entity.Property(e => e.Name)
                 .IsRequired()
                 .HasMaxLength(50);
-            
-            entity.Property(e => e.PasswordHash)
-                .IsRequired();
         });
 
         modelBuilder.Entity<Subscription>(entity =>

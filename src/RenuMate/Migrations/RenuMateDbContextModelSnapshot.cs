@@ -144,6 +144,9 @@ namespace RenuMate.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.HasIndex("UserId");
 
                     b.ToTable("Subscriptions", (string)null);
@@ -155,6 +158,11 @@ namespace RenuMate.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Auth0Id")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -163,10 +171,13 @@ namespace RenuMate.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsEmailConfirmed")
+                    b.Property<bool>("IsMetadataSynced")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Name")
@@ -174,11 +185,10 @@ namespace RenuMate.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("Auth0Id")
+                        .IsUnique();
 
                     b.HasIndex("Email")
                         .IsUnique();
