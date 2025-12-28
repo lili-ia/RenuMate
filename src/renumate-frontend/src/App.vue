@@ -3,7 +3,14 @@ import { ref, computed, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import api, { setAuthToken } from './api'
 
-const { isAuthenticated, loginWithRedirect, isLoading, getAccessTokenSilently, user } = useAuth0()
+const {
+  isAuthenticated,
+  loginWithRedirect,
+  isLoading,
+  getAccessTokenSilently,
+  user,
+  logout: auth0Logout,
+} = useAuth0()
 
 const subscriptions = ref([])
 const showModal = ref(false)
@@ -18,8 +25,9 @@ watch(
       try {
         const accessToken = await getAccessTokenSilently()
         setAuthToken(accessToken)
+        await syncUserWithDatabase()
         await loadSubscriptions()
-        await loadActiveCount()
+        await fetchTotal()
         console.log('Authentication complete, token set, and data loaded.')
       } catch (error) {
         console.error('Error in post-login process:', error)
@@ -34,51 +42,51 @@ watch(
 )
 
 const formData = ref({
-  serviceName: '',
+  name: '',
   cost: '',
   currency: 'UAH',
-  billingCycle: 'Monthly',
+  plan: 'Monthly',
+  customPeriodInDays: null,
   startDate: '',
-  nextRenewalDate: '',
   notes: '',
-  isActive: true,
+  isMuted: false,
 })
 
 const reminderForm = ref({
-  reminderDaysBefore: '',
-  isEnabled: true,
+  daysBeforeRenewal: '',
+  notifyTime: '09:00',
 })
 
-const activeSubscriptionsCount = ref(0)
-
-const loadActiveCount = async () => {
+const syncUserWithDatabase = async () => {
   try {
-    const response = await api.get('/subscriptions/summary')
-    if (typeof response.data === 'number') {
-      activeSubscriptionsCount.value = response.data
-    } else if (response.data && response.data.activeSubscriptionsCount !== undefined) {
-      activeSubscriptionsCount.value = response.data.activeSubscriptionsCount
-    } else {
-      activeSubscriptionsCount.value = 0
-    }
+    const response = await api.post('/users/sync-user', {})
+    console.log('User synced with backend database:', response.data)
 
-    console.log('Active subscription count loaded successfully.')
+    if (response.data.message.includes('created') || response.data.message.includes('synced')) {
+      await getAccessTokenSilently({
+        ignoreCache: true,
+      })
+
+      console.log('Token refreshed with new internal ID!')
+    }
   } catch (error) {
-    console.error('Error loading active subscription count:', error)
-    activeSubscriptionsCount.value = 0
+    console.error('Failed to sync user with database:', error)
+    throw error
   }
 }
 
-const totalMonthlyCost = computed(() => {
-  return subscriptions.value
-    .filter((s) => s.isActive)
-    .reduce((sum, s) => {
-      const cost = parseFloat(s.cost) || 0
-      if (s.billingCycle === 'Yearly') return sum + cost / 12
-      if (s.billingCycle === 'Weekly') return sum + cost * 4.33
-      return sum + cost
-    }, 0)
+const activeSubscriptionsCount = computed(() => {
+  return subscriptions.value.filter((s) => !s.isMuted).length
 })
+
+const localNotifyTime = (utcTime) => {
+  const date = new Date('January 06, 1990 ' + utcTime + ' GMT+00:00')
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
 
 const totalReminders = computed(() => {
   return subscriptions.value.reduce((sum, s) => sum + (s.reminders?.length || 0), 0)
@@ -90,23 +98,69 @@ const handleLogin = async () => {
 
 const logout = () => {
   localStorage.removeItem('accessToken')
+  auth0Logout({
+    logoutParams: {
+      returnTo: window.location.origin,
+    },
+  })
+}
+
+const totalCost = ref(0)
+const selectedCurrency = ref('USD')
+const selectedPeriod = ref('monthly')
+
+const popularCurrencies = [
+  { code: 'USD', name: 'US Dollar', symbol: '$' },
+  { code: 'EUR', name: 'Euro', symbol: '€' },
+  { code: 'UAH', name: 'Hryvnia', symbol: '₴' },
+  { code: 'PLN', name: 'Złoty', symbol: 'zł' },
+  { code: 'GBP', name: 'Pound', symbol: '£' },
+  { code: 'JPY', name: 'Yen', symbol: '¥' },
+]
+
+const fetchTotal = async () => {
+  try {
+    const response = await api.get('/subscriptions/total', {
+      params: {
+        currency: selectedCurrency.value,
+        period: selectedPeriod.value,
+      },
+    })
+    totalCost.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch analytics', error)
+  }
+}
+
+watch([selectedCurrency, selectedPeriod], fetchTotal)
+
+const formatDateTime = (isoString) => {
+  if (!isoString) return ''
+
+  const date = new Date(isoString)
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+    .format(date)
+    .replace(',', '')
 }
 
 const loadSubscriptions = async () => {
   try {
     const response = await api.get('/subscriptions')
-    subscriptions.value = response.data
+    subscriptions.value = response.data.items
 
     console.log('Subscriptions loaded successfully.')
   } catch (error) {
     console.error('Error loading subscriptions:', error)
     subscriptions.value = []
   }
-}
-
-const saveSubscriptions = (subs) => {
-  localStorage.setItem('subscriptions', JSON.stringify(subs))
-  subscriptions.value = subs
 }
 
 const openAddModal = () => {
@@ -119,26 +173,64 @@ const editSubscription = (sub) => {
   formData.value = {
     ...baseData,
     startDate: formatDate(baseData.startDate),
-    nextRenewalDate: formatDate(baseData.nextRenewalDate),
   }
 
   editingSubscription.value = sub
   showModal.value = true
 }
 
+const calculatedNextRenewalDate = computed(() => {
+  if (!formData.value.startDate || !formData.value.plan) return ''
+
+  const start = new Date(formData.value.startDate)
+  let nextDate = new Date(start)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const plan = formData.value.plan.toLowerCase()
+
+  const addPeriod = (date) => {
+    const d = new Date(date)
+    if (plan === 'weekly') d.setDate(d.getDate() + 7)
+    else if (plan === 'monthly') d.setMonth(d.getMonth() + 1)
+    else if (plan === 'quarterly') d.setMonth(d.getMonth() + 3)
+    else if (plan === 'annual') d.setFullYear(d.getFullYear() + 1)
+    else if (plan === 'custom' && formData.value.customPeriodInDays) {
+      d.setDate(d.getDate() + parseInt(formData.value.customPeriodInDays))
+    }
+    return d
+  }
+
+  while (nextDate <= today) {
+    const prevTime = nextDate.getTime()
+    nextDate = addPeriod(nextDate)
+
+    if (nextDate.getTime() <= prevTime) break
+  }
+
+  return nextDate.toISOString().split('T')[0]
+})
+
 const handleSubmit = async () => {
-  if (!formData.value.serviceName || !formData.value.cost) {
+  if (!formData.value.name || !formData.value.cost) {
     alert('Please fill in required fields')
+    return
+  }
+
+  if (formData.value.plan === 'Custom' && !formData.value.customPeriodInDays) {
+    alert('Please specify the custom period in days')
     return
   }
 
   const payload = {
     ...formData.value,
+    customPeriodInDays:
+      formData.value.plan === 'Custom' ? parseInt(formData.value.customPeriodInDays) : null,
   }
 
   try {
     if (editingSubscription.value) {
-      const subId = editingSubscription.value.subscriptionId
+      const subId = editingSubscription.value.id
       await api.put(`/subscriptions/${subId}`, payload)
       console.log(`Subscription ${subId} updated successfully on API.`)
     } else {
@@ -150,6 +242,9 @@ const handleSubmit = async () => {
   } catch (error) {
     if (error.response) {
       const { status, data } = error.response
+      if (status === 403) {
+        alert('Similar subscription already exists.')
+      }
       console.log(data)
     }
     alert('Failed to save subscription. Check the console.')
@@ -174,11 +269,24 @@ const deleteSubscription = async (id) => {
   }
 }
 
-const toggleActive = (id) => {
-  const updated = subscriptions.value.map((sub) =>
-    sub.subscriptionId === id ? { ...sub, isActive: !sub.isActive } : sub,
-  )
-  saveSubscriptions(updated)
+const toggleActive = async (id) => {
+  const sub = subscriptions.value.find((s) => s.id === id)
+  if (!sub) return
+
+  const newMuteStatus = !sub.isMuted
+
+  try {
+    await api.patch(`/subscriptions/${id}`, {
+      isMuted: newMuteStatus,
+    })
+
+    sub.isMuted = newMuteStatus
+
+    console.log(`Subscription ${id} is now ${newMuteStatus ? 'Muted' : 'Active'}`)
+  } catch (error) {
+    console.error('Error toggling mute status:', error)
+    alert('Failed to update status. Please try again.')
+  }
 }
 
 const formatDate = (dateString) => {
@@ -188,35 +296,39 @@ const formatDate = (dateString) => {
 
 const resetForm = () => {
   formData.value = {
-    serviceName: '',
+    name: '',
     cost: '',
     currency: 'UAH',
-    billingCycle: 'monthly',
+    plan: 'monthly',
     startDate: '',
-    nextRenewalDate: '',
     notes: '',
-    isActive: true,
+    isMuted: false,
   }
   editingSubscription.value = null
   showModal.value = false
 }
 
 const openReminderModal = (sub) => {
+  console.log('Opening reminder modal for subscription:', sub)
   selectedSubscription.value = sub
+  console.log('Selected subscription set to:', selectedSubscription.value)
   showReminderModal.value = true
 }
 
 const handleAddReminder = async () => {
-  if (!reminderForm.value.reminderDaysBefore) {
+  if (!reminderForm.value.daysBeforeRenewal) {
     alert('Please enter days before renewal')
     return
   }
 
   const payload = {
-    subscriptionId: selectedSubscription.value.subscriptionId,
-    reminderDaysBefore: parseInt(reminderForm.value.reminderDaysBefore),
-    isEnabled: reminderForm.value.isEnabled,
+    subscriptionId: selectedSubscription.value.id,
+    daysBeforeRenewal: parseInt(reminderForm.value.daysBeforeRenewal),
+    notifyTime: reminderForm.value.notifyTime,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   }
+
+  console.log('Adding reminder with payload:', payload)
 
   try {
     await api.post('/reminders', payload)
@@ -232,7 +344,7 @@ const handleAddReminder = async () => {
   }
 }
 
-const deleteReminder = async (subId, reminderId) => {
+const deleteReminder = async (reminderId) => {
   if (!confirm('Are you sure you want to delete this reminder?')) {
     return
   }
@@ -249,7 +361,7 @@ const deleteReminder = async (subId, reminderId) => {
 
 const closeReminderModal = () => {
   showReminderModal.value = false
-  reminderForm.value = { reminderDaysBefore: '', isEnabled: true }
+  reminderForm.value = { daysBeforeRenewal: '', notifyTime: '09:00' }
 }
 </script>
 
@@ -385,28 +497,36 @@ const closeReminderModal = () => {
           </div>
 
           <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-gray-600 text-sm">Monthly Cost</p>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex flex-col">
+                <select
+                  v-model="selectedPeriod"
+                  class="text-gray-600 text-sm bg-transparent border-none focus:ring-0 cursor-pointer p-0 capitalize"
+                >
+                  <option value="daily">Daily Cost</option>
+                  <option value="weekly">Weekly Cost</option>
+                  <option value="monthly">Monthly Cost</option>
+                  <option value="yearly">Yearly Cost</option>
+                </select>
+
                 <p class="text-3xl font-bold text-gray-800">
-                  {{ totalMonthlyCost.toFixed(2) }} UAH
+                  {{ totalCost.toFixed(2) }} {{ selectedCurrency }}
                 </p>
               </div>
-              <svg
-                class="w-12 h-12 text-green-600 opacity-20"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+
+              <div class="flex flex-col items-end">
+                <select
+                  v-model="selectedCurrency"
+                  class="block w-24 p-2 text-sm text-gray-700 bg-gray-50 rounded-lg border border-gray-300 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option v-for="curr in popularCurrencies" :key="curr.code" :value="curr.code">
+                    {{ curr.code }} ({{ curr.symbol }})
+                  </option>
+                </select>
+              </div>
             </div>
+
+            <div class="mt-4 text-xs text-gray-400">Rates updated every 24 hours</div>
           </div>
 
           <div class="bg-white rounded-lg shadow p-6">
@@ -480,17 +600,15 @@ const closeReminderModal = () => {
             <div v-else class="space-y-4">
               <div
                 v-for="sub in subscriptions"
-                :key="sub.subscriptionId"
-                :class="['border rounded-lg p-4', !sub.isActive && 'opacity-50']"
+                :key="sub.id"
+                :class="['border rounded-lg p-4', sub.isMuted && 'opacity-50']"
               >
                 <div class="flex justify-between items-start mb-3">
                   <div class="flex-1">
-                    <h3 class="text-lg font-bold text-gray-800">{{ sub.serviceName }}</h3>
+                    <h3 class="text-lg font-bold text-gray-800">{{ sub.name }}</h3>
                     <p class="text-2xl font-bold text-indigo-600 mt-1">
                       {{ sub.cost }} {{ sub.currency }}
-                      <span class="text-sm text-gray-600 font-normal ml-2"
-                        >/ {{ sub.billingCycle }}</span
-                      >
+                      <span class="text-sm text-gray-600 font-normal ml-2">/ {{ sub.plan }}</span>
                     </p>
                   </div>
                   <div class="flex gap-2">
@@ -514,7 +632,7 @@ const closeReminderModal = () => {
                       </svg>
                     </button>
                     <button
-                      @click="deleteSubscription(sub.subscriptionId)"
+                      @click="deleteSubscription(sub.id)"
                       class="p-2 text-red-600 hover:bg-red-50 rounded"
                     >
                       <svg
@@ -535,14 +653,18 @@ const closeReminderModal = () => {
                   </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                <div class="grid grid-cols-3 gap-4 text-sm mb-3">
                   <div>
                     <p class="text-gray-600">Start Date</p>
-                    <p class="font-semibold">{{ sub.startDate }}</p>
+                    <p class="font-semibold">{{ formatDateTime(sub.startDate) }}</p>
                   </div>
                   <div>
                     <p class="text-gray-600">Next Renewal</p>
-                    <p class="font-semibold">{{ sub.nextRenewalDate }}</p>
+                    <p class="font-semibold">{{ formatDateTime(sub.renewalDate) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-600">Days Left</p>
+                    <p class="font-semibold">{{ sub.daysLeft }}</p>
                   </div>
                 </div>
 
@@ -551,13 +673,51 @@ const closeReminderModal = () => {
                 <div class="flex items-center justify-between pt-3 border-t">
                   <div class="flex items-center gap-4">
                     <button
-                      @click="toggleActive(sub.subscriptionId)"
+                      @click="toggleActive(sub.id)"
                       :class="[
-                        'text-sm font-semibold',
-                        sub.isActive ? 'text-green-600' : 'text-gray-400',
+                        'flex items-center gap-1 text-sm font-semibold transition-colors duration-200',
+                        !sub.isMuted
+                          ? 'text-green-600 hover:text-green-700'
+                          : 'text-gray-400 hover:text-gray-600',
                       ]"
                     >
-                      {{ sub.isActive ? '● Active' : '○ Inactive' }}
+                      <svg
+                        v-if="sub.isMuted"
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                          clip-rule="evenodd"
+                        />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+                        />
+                      </svg>
+                      <svg
+                        v-else
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                        />
+                      </svg>
+
+                      {{ !sub.isMuted ? 'Active' : 'Muted' }}
                     </button>
                     <button
                       @click="openReminderModal(sub)"
@@ -587,20 +747,52 @@ const closeReminderModal = () => {
 
                 <div
                   v-if="sub.reminders && sub.reminders.length > 0"
-                  class="mt-3 pt-3 border-t space-y-2"
+                  class="mt-4 pt-4 border-t space-y-2"
                 >
+                  <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                    Reminders
+                  </p>
                   <div
                     v-for="reminder in sub.reminders"
                     :key="reminder.reminderId"
-                    class="flex items-center justify-between bg-gray-50 p-2 rounded"
+                    class="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 p-3 rounded-lg border border-indigo-100 hover:border-indigo-300 transition"
                   >
-                    <span class="text-sm">
-                      Remind {{ reminder.reminderDaysBefore }} days before renewal
-                      <span v-if="!reminder.isEnabled" class="text-gray-400 ml-2">(Disabled)</span>
-                    </span>
+                    <div class="flex items-start gap-3 flex-1">
+                      <svg
+                        class="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                        />
+                      </svg>
+                      <div class="text-sm text-gray-700">
+                        <p class="font-medium">
+                          {{ reminder.daysBeforeRenewal }} day(s) before renewal
+                        </p>
+                        <p class="text-xs text-gray-600 mt-1">
+                          at
+                          <span class="font-semibold text-indigo-600">{{
+                            localNotifyTime(reminder.notifyTime)
+                          }}</span>
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">
+                          Next:
+                          <span class="font-medium">{{
+                            formatDateTime(reminder.nextReminder)
+                          }}</span>
+                        </p>
+                      </div>
+                    </div>
                     <button
-                      @click="deleteReminder(sub.subscriptionId, reminder.reminderId)"
-                      class="text-red-600 hover:text-red-700"
+                      @click="deleteReminder(reminder.id)"
+                      class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition flex-shrink-0"
                     >
                       <svg
                         class="w-4 h-4"
@@ -638,9 +830,9 @@ const closeReminderModal = () => {
 
           <div class="p-6 space-y-4">
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">Service Name</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Name</label>
               <input
-                v-model="formData.serviceName"
+                v-model="formData.name"
                 type="text"
                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Netflix, Spotify, etc."
@@ -671,15 +863,29 @@ const closeReminderModal = () => {
             </div>
 
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">Billing Cycle</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Plan</label>
               <select
-                v-model="formData.billingCycle"
-                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                v-model="formData.plan"
+                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
               >
-                <option>weekly</option>
-                <option>monthly</option>
-                <option>yearly</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+                <option value="Annual">Annual</option>
+                <option value="Custom">Custom Period</option>
               </select>
+            </div>
+
+            <div v-if="formData.plan === 'Custom'" class="mt-4">
+              <label class="block text-sm font-semibold text-gray-700 mb-2"> Every X Days </label>
+              <input
+                v-model="formData.customPeriodInDays"
+                type="number"
+                min="1"
+                placeholder="e.g. 45"
+                class="w-full px-4 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-indigo-50"
+              />
+              <p class="text-xs text-indigo-600 mt-1">Enter the number of days between billings.</p>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -691,18 +897,17 @@ const closeReminderModal = () => {
                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
-              <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2"
-                  >Next Renewal Date</label
-                >
-                <input
-                  v-model="formData.nextRenewalDate"
-                  type="date"
-                  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2"
+                >Auto-Calculated Renewal</label
+              >
+              <div
+                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-indigo-600 font-bold"
+              >
+                {{ calculatedNextRenewalDate || 'Select a start date' }}
               </div>
             </div>
-
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
               <textarea
@@ -738,7 +943,7 @@ const closeReminderModal = () => {
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
           <div class="p-6 border-b">
             <h2 class="text-2xl font-bold text-gray-800">Add Reminder</h2>
-            <p class="text-gray-600 text-sm mt-1">for {{ selectedSubscription.serviceName }}</p>
+            <p class="text-gray-600 text-sm mt-1">for {{ selectedSubscription.name }}</p>
           </div>
 
           <div class="p-6 space-y-4">
@@ -747,7 +952,7 @@ const closeReminderModal = () => {
                 Remind me (days before renewal)
               </label>
               <input
-                v-model="reminderForm.reminderDaysBefore"
+                v-model="reminderForm.daysBeforeRenewal"
                 type="number"
                 min="1"
                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -755,16 +960,18 @@ const closeReminderModal = () => {
               />
             </div>
 
-            <div class="flex items-center gap-2">
-              <input
-                v-model="reminderForm.isEnabled"
-                type="checkbox"
-                id="reminderEnabled"
-                class="w-4 h-4 text-indigo-600 rounded"
-              />
-              <label for="reminderEnabled" class="text-sm font-semibold text-gray-700">
-                Enable reminder
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Notification Time
               </label>
+              <input
+                v-model="reminderForm.notifyTime"
+                type="time"
+                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+              <p class="text-xs text-gray-500 mt-1">
+                Pick the time of day you want to receive the alert.
+              </p>
             </div>
 
             <div class="flex gap-3 pt-4">

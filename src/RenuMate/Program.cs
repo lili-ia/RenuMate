@@ -151,6 +151,8 @@ builder.Services.AddTransient<ITokenService, TokenService>();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddTransient<IReminderService, ReminderService>();
 builder.Services.AddTransient<ISubscriptionService, SubscriptionService>();
+builder.Services.AddHttpClient<ICurrencyService, CurrencyService>();
+builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 
 builder.Services.AddHangfire(config =>
     config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("HangfireConnection")));

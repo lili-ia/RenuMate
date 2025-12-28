@@ -1,3 +1,4 @@
+using RenuMate.Analytics.GetTotalInCurrency;
 using RenuMate.Reminders.Create;
 using RenuMate.Reminders.Delete;
 using RenuMate.Reminders.GetAllForSubscription;
@@ -32,6 +33,7 @@ public static class EndpointExtensions
         GetSubscriptionDetailsByIdEndpoint.Map(app);
         GetAllSubscriptionsForUserEndpoint.Map(app);
         SetSubscriptionMuteStatusEndpoint.Map(app);
+        GetActiveTotalInCurrencyEndpoint.Map(app);  
         
         CreateReminderEndpoint.Map(app);
         DeleteReminderEndpoint.Map(app);

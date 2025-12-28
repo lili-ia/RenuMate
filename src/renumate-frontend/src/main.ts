@@ -1,7 +1,6 @@
 import './assets/main.css'
 
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
 import { createAuth0 } from '@auth0/auth0-vue'
 
 import App from './App.vue'
@@ -17,10 +16,11 @@ app.use(
     authorizationParams: {
       redirect_uri: window.location.origin,
       audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+      scope: 'openid profile email',
     },
+    cacheLocation: 'localstorage',
+    useRefreshTokens: true,
   }),
 )
-
-app.use(createPinia())
 
 app.mount('#app')
