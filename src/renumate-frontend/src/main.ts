@@ -2,6 +2,7 @@ import './assets/main.css'
 
 import { createApp } from 'vue'
 import { createAuth0 } from '@auth0/auth0-vue'
+import ToastPlugin from 'vue-toast-notification'
 
 import App from './App.vue'
 
@@ -22,5 +23,7 @@ app.use(
     useRefreshTokens: true,
   }),
 )
+
+app.use(ToastPlugin)
 
 app.mount('#app')
