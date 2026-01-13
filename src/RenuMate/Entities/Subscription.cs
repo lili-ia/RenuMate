@@ -12,22 +12,8 @@ public class Subscription : BaseEntity
     public int? CustomPeriodInDays { get; set; }
     
     public DateTime StartDate { get; set; }
-
-    private DateTime _renewalDate;
-    public DateTime RenewalDate
-    {
-        get => _renewalDate;
-        set
-        {
-            if (_renewalDate == value)
-            {
-                return;
-            }
-            
-            _renewalDate = value;
-            AddDomainEvent(new SubscriptionRenewalDateUpdatedEvent(Id, RenewalDate));
-        }
-    }
+    
+    public DateTime RenewalDate { get; private set; }
     
     public decimal Cost { get; set; }
 
@@ -43,7 +29,41 @@ public class Subscription : BaseEntity
 
     public Guid UserId { get; set; }
 
-    public User User { get; set; } = null!;
-    
-    public ICollection<ReminderRule> Reminders { get; set; }
+    public User User { get; init; } = null!;
+
+    public ICollection<ReminderRule> Reminders { get; set; } = [];
+
+    public void UpdateNextRenewalDate()
+    {
+        var today = DateTime.UtcNow.Date;
+        
+        var next = RenewalDate != default ? RenewalDate : StartDate;
+
+        if (next > today)
+        {
+            return;
+        }
+
+        while (next <= today)
+        {
+            next = Plan switch
+            {
+                SubscriptionPlan.Monthly => next.AddMonths(1),
+                SubscriptionPlan.Quarterly => next.AddMonths(3),
+                SubscriptionPlan.Annual => next.AddYears(1),
+                SubscriptionPlan.Custom => CustomPeriodInDays.HasValue 
+                    ? next.AddDays(CustomPeriodInDays.Value) 
+                    : throw new InvalidOperationException("Custom period requires days to be specified."),
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+
+        if (RenewalDate == next)
+        {
+            return;
+        }
+        
+        RenewalDate = next;
+        AddDomainEvent(new SubscriptionRenewalDateUpdatedEvent(Id, RenewalDate));
+    }
 }

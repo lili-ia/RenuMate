@@ -142,11 +142,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddLogging();
-builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddSingleton<IEmailTemplateService, EmailTemplateService>();
 builder.Services.Configure<EmailSenderOptions>(builder.Configuration.GetSection("EmailSender"));
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IUserContext, UserContext>();
-builder.Services.AddTransient<IPasswordHasher, PasswordHasher>();
 builder.Services.AddTransient<ITokenService, TokenService>();
 builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddTransient<IReminderService, ReminderService>();
@@ -208,17 +207,21 @@ if (app.Environment.IsDevelopment())
 app.MapEndpoints();
 app.MapHangfireDashboard();
 
-RecurringJob.AddOrUpdate<ISubscriptionService>(
-    "process-subscription-renewals",
-    service => service.ProcessSubscriptionRenewalAsync(CancellationToken.None), 
-    "0 2 * * *");
-
-RecurringJob.AddOrUpdate<IReminderService>(
-    "process-reminders",
-    service => service.ProcessDueRemindersAsync(),
-    Cron.Minutely);
-
-var now = DateTime.UtcNow;
-Console.WriteLine(now);
+try
+{
+    RecurringJob.AddOrUpdate<ISubscriptionService>(
+        "process-subscription-renewals",
+        service => service.ProcessSubscriptionRenewalAsync(CancellationToken.None),
+        "0 2 * * *");
+    
+    RecurringJob.AddOrUpdate<IReminderService>(
+        "process-reminders",
+        service => service.ProcessDueRemindersAsync(CancellationToken.None),
+        Cron.Minutely);
+}
+catch (PostgreSqlDistributedLockException ex)
+{
+    Console.WriteLine("Could not acquire lock, skipping job update.");
+}
 
 app.Run();

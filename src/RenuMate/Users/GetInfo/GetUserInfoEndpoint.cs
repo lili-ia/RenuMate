@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+using System.Net.Mime;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
 using RenuMate.Persistence;
@@ -14,9 +14,9 @@ public abstract class GetUserInfoEndpoint : IEndpoint
         .WithSummary("Get current user info.")
         .WithDescription("Retrieves details about the authenticated user including email, name, member since, and subscription count.")
         .WithTags("Users")
-        .Produces<UserInfoResponse>(200, "application/json")
-        .Produces(401)
-        .Produces(404);
+        .Produces<UserInfoResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
     private static async Task<IResult> Handle(
         RenuMateDbContext db,
@@ -25,26 +25,17 @@ public abstract class GetUserInfoEndpoint : IEndpoint
     {
         var userId = userContext.UserId;
 
-        if (userId == Guid.Empty)
-        {
-            return Results.Problem(
-                statusCode: 401,
-                title: "Unauthorized",
-                detail: "User is not authenticated."
-            );
-        }
-
         var info = await db.Users
             .AsNoTracking()
             .Where(u => u.Id == userId)
             .Select(u => new UserInfoResponse
-            {
-                Id = u.Id,
-                Email = u.Email,
-                Name = u.Name,
-                MemberSince = u.CreatedAt,
-                SubscriptionCount = u.Subscriptions.Count
-            })
+            (
+                u.Id,
+                u.Email,
+                u.Name,
+                u.CreatedAt,
+                u.Subscriptions.Count
+            ))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (info is null)

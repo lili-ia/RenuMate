@@ -10,6 +10,21 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         Exception exception, 
         CancellationToken cancellationToken)
     {
+        if (exception is UnauthorizedAccessException)
+        {
+            logger.LogWarning("Unauthorized access attempt: {Message}", exception.Message);
+
+            httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await httpContext.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Unauthorized",
+                Detail = exception.Message
+            }, cancellationToken);
+
+            return true; 
+        }
+        
         logger.LogError(exception, "Exception occured: {Message}", exception.Message);
 
         var problemDetails= new ProblemDetails

@@ -1,3 +1,4 @@
+using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
@@ -11,13 +12,13 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/subscriptions/{id:guid}", Handle)
-        .RequireAuthorization("EmailConfirmed")
+        .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Get subscription details by ID.")
         .WithDescription("Returns detailed information about a subscription owned by the authenticated user.")
         .WithTags("Subscriptions")
-        .Produces<SubscriptionDetailsDto>(200, "application/json")
-        .Produces(401)
-        .Produces(404);
+        .Produces<SubscriptionDetailsDto>(200, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,
@@ -26,16 +27,7 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
-
-        if (userId == Guid.Empty)
-        {
-            return Results.Problem(
-                statusCode: 401,
-                title: "Unauthorized",
-                detail: "User is not authenticated."
-            );
-        }
-
+        
         var subscription = await db.Subscriptions
             .AsNoTracking()
             .Where(s => s.Id == id && s.UserId == userId)

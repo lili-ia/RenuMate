@@ -1,22 +1,13 @@
 namespace RenuMate.Subscriptions.Update;
 
-public class UpdateSubscriptionRequest
-{
-    public string Name { get; set; } = null!;
-
-    public string Plan { get; set; } = null!;
-    
-    public int? CustomPeriodInDays { get; set; }
-    
-    public DateTime StartDate { get; set; }
-    
-    public decimal Cost { get; set; }
-
-    public string Currency { get; set; } = null!;
-    
-    public string? Note { get; set; }
-    
-    public string? CancelLink { get; set; }
-    
-    public string? PicLink { get; set; }
-}
+public sealed record UpdateSubscriptionRequest(
+    string Name,
+    string Plan,
+    int? CustomPeriodInDays,
+    DateTime StartDate,
+    decimal Cost,
+    string Currency,
+    string? Note,
+    string? CancelLink,
+    string? PicLink
+);

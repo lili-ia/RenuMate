@@ -1,3 +1,4 @@
+using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
@@ -14,10 +15,10 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         .WithSummary("Deactivate user account.")
         .WithDescription("Sets the authenticated user's account to inactive.")
         .WithTags("Users")
-        .Produces<MessageResponse>(200, "application/json")
-        .Produces(401)
-        .Produces(404)
-        .Produces(500);
+        .Produces<MessageResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status500InternalServerError);
 
     private static async Task<IResult> Handle(
         [FromServices] RenuMateDbContext db,
@@ -26,15 +27,6 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
-
-        if (userId == Guid.Empty)
-        {
-            return Results.Problem(
-                statusCode: 401,
-                title: "Unauthorized",
-                detail: "User is not authenticated."
-            );
-        }
         
         try
         {
@@ -53,9 +45,9 @@ public abstract class DeactivateUserEndpoint : IEndpoint
             }
          
             return Results.Ok(new MessageResponse
-            {
-                Message = "Your account was successfully deactivated."
-            });
+            (
+                Message: "Your account was successfully deactivated."
+            ));
         }
         catch (Exception ex)
         {

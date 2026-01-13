@@ -1,3 +1,4 @@
+using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.DTOs;
@@ -9,57 +10,36 @@ namespace RenuMate.Reminders.GetAllForSubscription;
 public abstract class GetAllRemindersForSubscriptionEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapGet("api/subscriptions/{subscriptionId:guid}/reminders", Handle)
-        .RequireAuthorization("EmailConfirmed")
+        .MapGet("api/reminders", Handle)
+        .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Get all reminders for a subscription.")
         .WithDescription("Retrieves all reminder rules associated with a subscription for the authenticated user.")
         .WithTags("Reminders")
-        .Produces<List<ReminderDto>>(200, "application/json")
-        .Produces(401)
-        .Produces(403)
-        .Produces(404);
+        .Produces<List<ReminderDto>>(200, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
     
     private static async Task<IResult> Handle(
-        [FromRoute] Guid subscriptionId,
+        [FromQuery] Guid subscriptionId,
         [FromServices] RenuMateDbContext db,
         [FromServices] IUserContext userContext,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
+        
+        var subscriptionExists = await db.Subscriptions
+            .AnyAsync(s => s.Id == subscriptionId && s.UserId == userId, cancellationToken);
 
-        if (userId == Guid.Empty)
-        {
-            return Results.Problem(
-                statusCode: 401,
-                title: "Unauthorized",
-                detail: "User is not authenticated."
-            );
-        }
-
-        var subscription = await db.Subscriptions
-            .AsNoTracking()
-            .Where(s => s.Id == subscriptionId)
-            .Select(s => new { s.Id, s.UserId })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (subscription is null)
+        if (!subscriptionExists)
         {
             return Results.Problem(
                 statusCode: 404,
                 title: "Subscription not found",
-                detail: "No subscription exists with the specified ID."
+                detail: "No subscription exists with the specified ID for this user."
             );
         }
 
-        if (subscription.UserId != userId)
-        {
-            return Results.Problem(
-                statusCode: 403,
-                title: "Forbidden",
-                detail: "You do not have access to this subscription."
-            );
-        }
-        
         var reminders = await db.ReminderRules
             .Where(r => r.SubscriptionId == subscriptionId)
             .Select(ReminderMapper.ProjectToDto)

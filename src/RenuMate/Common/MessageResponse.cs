@@ -1,6 +1,3 @@
 namespace RenuMate.Common;
 
-public class MessageResponse
-{
-    public string Message { get; set; } = null!;
-}
+public sealed record MessageResponse (string Message);

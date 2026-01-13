@@ -6,15 +6,8 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Services;
 
-public class TokenService : ITokenService
+public class TokenService(IConfiguration configuration) : ITokenService
 {
-    private IConfiguration _configuration;
-    
-    public TokenService(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
-    
     public string CreateToken(string userId, string email, string purpose, string emailConfrimed, DateTime expiresAt)
     {
         var claims = new List<Claim>
@@ -25,12 +18,12 @@ public class TokenService : ITokenService
             new("emailconfirmed", emailConfrimed)
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SigningKey"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:SigningKey"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
+            issuer: configuration["Jwt:Issuer"],
+            audience: configuration["Jwt:Audience"],
             claims: claims,
             expires: expiresAt,
             signingCredentials: creds);
@@ -41,7 +34,7 @@ public class TokenService : ITokenService
     public ClaimsPrincipal? ValidateToken(string token, string expectedPurpose)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_configuration["Jwt:SigningKey"]!);
+        var key = Encoding.UTF8.GetBytes(configuration["Jwt:SigningKey"]!);
 
         try
         {
@@ -52,8 +45,8 @@ public class TokenService : ITokenService
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
 
-                ValidIssuer = _configuration["Jwt:Issuer"],
-                ValidAudience = _configuration["Jwt:Audience"],
+                ValidIssuer = configuration["Jwt:Issuer"],
+                ValidAudience = configuration["Jwt:Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(key),
 
                 ClockSkew = TimeSpan.Zero

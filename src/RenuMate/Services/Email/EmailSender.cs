@@ -5,16 +5,11 @@ using SendGrid.Helpers.Mail;
 
 namespace RenuMate.Services.Email;
 
-public class EmailSender : IEmailSender
+public class EmailSender(IOptions<EmailSenderOptions> options) : IEmailSender
 {
-    private readonly EmailSenderOptions _options;
-    
-    public EmailSender(IOptions<EmailSenderOptions> options)
-    {
-        _options = options.Value;
-    }
-    
-    public async Task<bool> SendEmailAsync(string to, string subject, string body)
+    private readonly EmailSenderOptions _options = options.Value;
+
+    public async Task<bool> SendEmailAsync(string to, string subject, string body, CancellationToken ct)
     {
         var client = new SendGridClient(_options.ApiKey);
 
@@ -34,7 +29,7 @@ public class EmailSender : IEmailSender
         
         msg.TrackingSettings = trackingSettings;
         
-        var response = await client.SendEmailAsync(msg);
+        var response = await client.SendEmailAsync(msg, ct);
 
         return response.IsSuccessStatusCode;
     }

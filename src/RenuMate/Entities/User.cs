@@ -14,5 +14,5 @@ public class User : BaseEntity
     
     public bool IsMetadataSynced { get; set; } = false;
 
-    public ICollection<Subscription> Subscriptions { get; set; } = [];
+    public ICollection<Subscription> Subscriptions { get; init; } = [];
 }

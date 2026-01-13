@@ -1,3 +1,4 @@
+using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
@@ -11,12 +12,12 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/subscriptions", Handle)
-        .RequireAuthorization("EmailConfirmed")
+        .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Get user subscriptions.")
         .WithDescription("Returns a paginated list of subscriptions belonging to the authenticated user.")
         .WithTags("Subscriptions")
-        .Produces<PaginatedResponse<SubscriptionDto>>(200, "application/json")
-        .Produces(401);
+        .Produces<PaginatedResponse<SubscriptionDetailsDto>>(200, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status401Unauthorized);
     
     private static async Task<IResult> Handle(
         [FromServices] IUserContext userContext,
@@ -26,15 +27,6 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
-
-        if (userId == Guid.Empty)
-        {
-            return Results.Problem(
-                statusCode: 401,
-                title: "Unauthorized",
-                detail: "User is not authenticated."
-            );
-        }
 
         var totalCount = await db.Subscriptions
             .Where(s => s.UserId == userId)
@@ -50,17 +42,17 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
             .OrderBy(s => s.StartDate) 
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(SubscriptionMapper.ProjectToDto)
+            .Select(SubscriptionMapper.ProjectToDetailsDto)
             .ToListAsync(cancellationToken);
 
-        var result = new PaginatedResponse<SubscriptionDto>
-        {
-            Items = subscriptions,
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = totalCount,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-        };
+        var result = new PaginatedResponse<SubscriptionDetailsDto>
+        (
+            Items: subscriptions,
+            Page: page,
+            PageSize: pageSize,
+            TotalCount: totalCount,
+            TotalPages: (int)Math.Ceiling(totalCount / (double)pageSize)
+        );
 
         return Results.Ok(result);
     }

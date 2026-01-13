@@ -1,21 +1,23 @@
+using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.DTOs;
 using RenuMate.Enums;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
-namespace RenuMate.Analytics.GetTotalInCurrency;
+namespace RenuMate.Subscriptions.GetSummary;
 
-public class GetActiveTotalInCurrencyEndpoint : IEndpoint
+public class GetSubscriptionsSummaryEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapGet("api/subscriptions/total", Handle)
+        .MapGet("api/subscriptions/summary", Handle)
         .RequireAuthorization("VerifiedEmailOnly")
-        .WithSummary("Get total for subscriptions in desired currency.")
+        .WithSummary("Get summary for user's subscriptions.")
         .WithDescription("") // todo???
         .WithTags("Subscriptions")
-        .Produces<decimal>(StatusCodes.Status200OK)
+        .Produces<SubscriptionSummaryDto>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status500InternalServerError);
@@ -28,6 +30,8 @@ public class GetActiveTotalInCurrencyEndpoint : IEndpoint
          ICurrencyService currencyService,
          CancellationToken cancellationToken = default)
     {
+        var userId = userContext.UserId;
+        
         if (!Enum.TryParse<Currency>(currency, true, out var targetCurrency))
         {
             return Results.Problem(
@@ -44,14 +48,21 @@ public class GetActiveTotalInCurrencyEndpoint : IEndpoint
             _ => 30 
         };
         
-        var userId = userContext.UserId;
+        var stats = await db.Subscriptions
+            .Where(s => s.UserId == userId)
+            .GroupBy(s => 1) 
+            .Select(g => new {
+                ActiveCount = g.Count(s => !s.IsMuted),
+                TotalReminders = db.ReminderRules.Count(r => r.Subscription.UserId == userId)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
         
         var subscriptions = await db.Subscriptions
             .AsNoTracking()
             .Where(s => s.UserId == userId && !s.IsMuted)
             .Select(s => new { s.Currency, s.Cost, s.Plan, s.CustomPeriodInDays })
             .ToListAsync(cancellationToken);
-
+        
         if (subscriptions.Count == 0)
         {
             return Results.Ok(0.0);
@@ -91,6 +102,11 @@ public class GetActiveTotalInCurrencyEndpoint : IEndpoint
             totalNormalized += dailyCost * requestedPeriod;
         }
 
-        return Results.Ok(Math.Round(totalNormalized, 2));
+        return Results.Ok(new SubscriptionSummaryDto
+        (
+            TotalCost: Math.Round(totalNormalized, 2),
+            ActiveSubscriptionsCount: stats?.ActiveCount ?? 0,
+            TotalRemindersCount: stats?.TotalReminders ?? 0
+        ));
     }
 }

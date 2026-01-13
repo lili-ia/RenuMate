@@ -1,18 +1,11 @@
 namespace RenuMate.Subscriptions.Update;
 
-public class UpdateSubscriptionResponse
-{
-    public Guid Id { get; set; }
-    
-    public string Name { get; set; } = null!;
-    
-    public DateTime RenewalDate { get; set; }
-
-    public string Cost { get; set; } = null!;
-    
-    public string? Note { get; set; }
-    
-    public string? CancelLink { get; set; }
-    
-    public string? PicLink { get; set; }
-}
+public record UpdateSubscriptionResponse(
+    Guid Id,
+    string Name,
+    DateTime RenewalDate,
+    string Cost,
+    string? Note,
+    string? CancelLink,
+    string? PicLink
+);

@@ -2,9 +2,9 @@ namespace RenuMate.Entities;
 
 public class ReminderOccurrence : BaseEntity
 {
-    public Guid ReminderRuleId { get; set; }
+    public Guid? ReminderRuleId { get; init; }
 
-    public ReminderRule ReminderRule { get; set; } = null!;
+    public ReminderRule ReminderRule { get; init; } = null!;
     
     public DateTime ScheduledAt { get; set; }
     

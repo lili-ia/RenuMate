@@ -1,3 +1,4 @@
+using System.Net.Mime;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,35 +16,35 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
         .WithSummary("Request user account reactivation.")
         .WithDescription("If the account exists and is deactivated, a reactivation email is sent with a verification link.")
         .WithTags("Users")
-        .Produces<MessageResponse>(200, "application/json")
-        .Produces(400)
-        .Produces(500);
+        .Produces<MessageResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
     private static async Task<IResult> Handle(
-        [FromBody] ReactivateRequest request, 
+        [FromBody] ReactivateUserRequest userRequest, 
         RenuMateDbContext db,
         ITokenService tokenService,
         IConfiguration configuration,
         IEmailSender emailSender,
         IEmailTemplateService emailTemplateService,
-        IValidator<ReactivateRequest> validator,
+        IValidator<ReactivateUserRequest> validator,
         CancellationToken cancellationToken = default)
     {
-        var validation = await validator.ValidateAsync(request, cancellationToken);
+        var validation = await validator.ValidateAsync(userRequest, cancellationToken);
         
         if (!validation.IsValid)
         {
             return validation.ToFailureResult();
         }
         
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == userRequest.Email, cancellationToken);
 
         if (user is null || user.IsActive)
         {
             return Results.Ok(new MessageResponse
-            {
-                Message = "If your account exists and is deactivated, a reactivation email was sent."
-            });
+            (
+                Message: "If your account exists and is deactivated, a reactivation email was sent."
+            ));
         }
 
         var frontendUrl = configuration["App:FrontendUrl"];
@@ -70,8 +71,8 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
         }
 
         return Results.Ok(new MessageResponse
-        {
-            Message = "If your account exists and is deactivated, a reactivation email was sent."
-        });
+        (
+            Message: "If your account exists and is deactivated, a reactivation email was sent."
+        ));
     }
 }

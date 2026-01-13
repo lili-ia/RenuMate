@@ -5,35 +5,23 @@ using RenuMate.Services.Contracts;
 
 namespace RenuMate.Services;
 
-public class ReminderService : IReminderService
+public class ReminderService(
+    RenuMateDbContext db,
+    IEmailSender emailService,
+    ILogger<ReminderService> logger,
+    IEmailTemplateService emailTemplateService)
+    : IReminderService
 {
-    private readonly RenuMateDbContext _db;
-    private readonly IEmailSender _emailService;
-    private readonly ILogger<ReminderService> _logger;
-    private readonly IEmailTemplateService _emailTemplateService;
-
-    public ReminderService(
-        RenuMateDbContext db, 
-        IEmailSender emailService, 
-        ILogger<ReminderService> logger, 
-        IEmailTemplateService emailTemplateService)
-    {
-        _db = db;
-        _emailService = emailService;
-        _logger = logger;
-        _emailTemplateService = emailTemplateService;
-    }
-
-    public async Task ProcessDueRemindersAsync()
+    public async Task ProcessDueRemindersAsync(CancellationToken ct)
     {
         var now = DateTime.UtcNow;
 
-        var occurrences = await _db.ReminderOccurrences
+        var occurrences = await db.ReminderOccurrences
             .Include(o => o.ReminderRule)
                 .ThenInclude(r => r.Subscription)
                 .ThenInclude(s => s.User)
             .Where(o => !o.ReminderRule.Subscription.IsMuted && !o.IsSent && o.ScheduledAt <= now)
-            .ToListAsync();
+            .ToListAsync(ct);
         
         foreach (var o in occurrences)
         {
@@ -50,7 +38,7 @@ public class ReminderService : IReminderService
 
             var subject = $"Reminder: Your subscription \"{subscription.Name}\" is active";
 
-            var body = _emailTemplateService.BuildSubscriptionReminderEmail(
+            var body = emailTemplateService.BuildSubscriptionReminderEmail(
                 userName: subscription.User.Name,
                 subscriptionName: subscription.Name,
                 plan: subscription.Plan.ToString(),
@@ -61,7 +49,7 @@ public class ReminderService : IReminderService
                 period: period,
                 note: note);
                 
-            var sent = await _emailService.SendEmailAsync(email, subject, body);
+            var sent = await emailService.SendEmailAsync(email, subject, body, ct);
 
             if (sent)
             {
@@ -85,10 +73,10 @@ public class ReminderService : IReminderService
                 IsSent = false
             };
 
-            _db.ReminderOccurrences.Add(nextReminder);
+            db.ReminderOccurrences.Add(nextReminder);
         }
         
-        await _db.SaveChangesAsync();
-        _logger.LogInformation("Sent {RemindersCount} emails.", occurrences.Count);
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Sent {RemindersCount} emails.", occurrences.Count);
     }
 }

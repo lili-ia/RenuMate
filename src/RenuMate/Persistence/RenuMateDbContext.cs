@@ -7,7 +7,6 @@ namespace RenuMate.Persistence;
 
 public class RenuMateDbContext : DbContext
 {
-    private readonly IMediator _mediator;
     public RenuMateDbContext(IMediator mediator)
     {
         _mediator = mediator;
@@ -48,6 +47,8 @@ public class RenuMateDbContext : DbContext
             
         return result;
     }
+    
+    private readonly IMediator _mediator;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -87,6 +88,9 @@ public class RenuMateDbContext : DbContext
             entity.Property(e => e.Name)
                 .IsRequired()
                 .HasMaxLength(100);
+
+            entity.HasIndex(e => e.Name)
+                .IsUnique();
 
             entity.Property(e => e.Plan)
                 .HasConversion<string>()
@@ -152,7 +156,7 @@ public class RenuMateDbContext : DbContext
             entity.HasOne(o => o.ReminderRule)
                 .WithMany(r => r.ReminderOccurrences) 
                 .HasForeignKey(o => o.ReminderRuleId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(o => o.ScheduledAt);
             entity.HasIndex(o => new { o.ReminderRuleId, o.IsSent });

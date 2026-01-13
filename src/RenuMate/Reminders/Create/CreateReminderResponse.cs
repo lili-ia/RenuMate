@@ -1,14 +1,10 @@
 namespace RenuMate.Reminders.Create;
 
-public class CreateReminderResponse
-{
-    public Guid Id { get; set; }
-    
-    public Guid SubscriptionId { get; set; }
-
-    public int DaysBeforeRenewal { get; set; }  
-    
-    public TimeSpan NotifyTime { get; set; } 
-    
-    public DateTime NextReminder { get; set; } 
-}
+public sealed record CreateReminderResponse
+(
+    Guid Id,
+    Guid SubscriptionId,
+    int DaysBeforeRenewal,
+    TimeSpan NotifyTime,
+    DateTime NextReminder 
+);

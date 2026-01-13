@@ -1,3 +1,4 @@
+using System.Net.Mime;
 using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
@@ -17,10 +18,10 @@ public abstract class ReactivateUserEndpoint : IEndpoint
         .WithDescription("Reactivates a deactivated user account using a valid reactivation token.")
         .WithTags("Users")
         .RequireAuthorization()
-        .Produces<TokenResponse>(200, "application/json")
-        .Produces(400)
-        .Produces(409)
-        .Produces(500);
+        .Produces<TokenResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status409Conflict)
+        .Produces(StatusCodes.Status500InternalServerError);
 
     private static async Task<IResult> Handle(
         [FromQuery] string token,
@@ -93,9 +94,9 @@ public abstract class ReactivateUserEndpoint : IEndpoint
                 expiresAt: DateTime.UtcNow.AddHours(24));
             
             return Results.Ok(new TokenResponse
-            {
-                Token = accessToken
-            });
+            (
+                Token: accessToken
+            ));
         }
         catch (Exception ex)
         {

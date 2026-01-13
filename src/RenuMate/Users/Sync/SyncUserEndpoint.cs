@@ -1,6 +1,6 @@
+using System.Net.Mime;
 using System.Security.Claims;
 using Auth0.ManagementApi;
-using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
@@ -18,7 +18,7 @@ public class SyncUserEndpoint : IEndpoint
         .RequireAuthorization()
         .WithSummary("Syncs Auth0 user with local database")
         .WithDescription("Creates a new user or links an existing legacy user by email.")
-        .Produces<SyncUserResponse>(StatusCodes.Status200OK)
+        .Produces<SyncUserResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status409Conflict)
         .ProducesProblem(StatusCodes.Status500InternalServerError);
@@ -64,7 +64,7 @@ public class SyncUserEndpoint : IEndpoint
                 await db.SaveChangesAsync(ct);
             }
             
-            return TypedResults.Ok(new SyncUserResponse { Message = "User synced", UserId = user.Id });
+            return TypedResults.Ok(new SyncUserResponse ("User synced", user.Id));
         }
 
         user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
@@ -84,7 +84,7 @@ public class SyncUserEndpoint : IEndpoint
             
             await db.SaveChangesAsync(ct);
             
-            return TypedResults.Ok(new SyncUserResponse { Message = "Legacy user linked", UserId = user.Id });
+            return TypedResults.Ok(new SyncUserResponse ("Legacy user linked", user.Id));
         }
 
         var newUser = new User
@@ -109,7 +109,7 @@ public class SyncUserEndpoint : IEndpoint
             newUser.IsMetadataSynced = true;
             await db.SaveChangesAsync(ct);
             
-            return TypedResults.Ok(new SyncUserResponse { Message = "User created", UserId = newUser.Id });
+            return TypedResults.Ok(new SyncUserResponse ("User created", newUser.Id));
         }
         catch (DbUpdateException)
         {

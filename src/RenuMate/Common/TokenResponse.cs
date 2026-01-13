@@ -1,6 +1,3 @@
 namespace RenuMate.Common;
 
-public class TokenResponse
-{
-    public string Token { get; set; } = null!;
-}
+public sealed record TokenResponse (string Token);

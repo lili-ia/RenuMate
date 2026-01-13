@@ -1,14 +1,9 @@
 namespace RenuMate.Common;
 
-public class PaginatedResponse<T>
-{
-    public IEnumerable<T> Items { get; set; } = null!;
-    
-    public int Page { get; set; }
-    
-    public int PageSize { get; set; }
-    
-    public int TotalCount { get; set; }
-    
-    public int TotalPages { get; set; }
-}
+public sealed record PaginatedResponse<T> (
+    IEnumerable<T> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    int TotalPages
+);

@@ -17,12 +17,20 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
             .WithMessage("Invalid subscription plan.");
 
         RuleFor(x => x.CustomPeriodInDays)
-            .GreaterThan(0)
-            .When(x => x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Custom period must be greater than zero for custom subscriptions.")
-            .Null()
-            .When(x => !x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Custom period should only be set for custom subscriptions.");
+            .GreaterThan(0);
+        
+        When(x => x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase), () => 
+        {
+            RuleFor(x => x.CustomPeriodInDays)
+                .NotNull().WithMessage("Custom period is required for custom subscriptions.")
+                .GreaterThan(0).WithMessage("Custom period must be greater than zero.");
+        });
+
+        When(x => !x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase), () => 
+        {
+            RuleFor(x => x.CustomPeriodInDays)
+                .Null().WithMessage("Custom period should only be set for custom subscriptions.");
+        });
 
         RuleFor(x => x.StartDate)
             .LessThanOrEqualTo(DateTime.UtcNow.AddYears(5))

@@ -4,11 +4,6 @@ namespace RenuMate.Services.Email;
 
 public class EmailTemplateService : IEmailTemplateService
 {
-    public EmailTemplateService()
-    {
-        
-    }
-    
     public string BuildConfirmEmailMessage(string confirmLink)
     {
         return $@"

@@ -1,12 +1,8 @@
 namespace RenuMate.DTOs;
 
-public class ReminderDto
-{
-    public Guid Id { get; set; }
-
-    public int DaysBeforeRenewal { get; set; }  
-    
-    public TimeSpan NotifyTime { get; set; }
-    
-    public DateTime NextReminder { get; set; }
-}
+public sealed record ReminderDto(
+    Guid Id,
+    int DaysBeforeRenewal,
+    TimeSpan NotifyTime,
+    DateTime NextReminder
+);

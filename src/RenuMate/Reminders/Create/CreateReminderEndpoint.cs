@@ -1,9 +1,9 @@
+using System.Net.Mime;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
 using RenuMate.Entities;
-using RenuMate.Enums;
 using RenuMate.Extensions;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
@@ -13,20 +13,19 @@ namespace RenuMate.Reminders.Create;
 public abstract class CreateReminderEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapPost("api/subscriptions/{subscriptionId:guid}/reminders", Handle)
-        .RequireAuthorization("EmailConfirmed")
+        .MapPost("api/reminders", Handle)
+        .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Creates a new reminder for a subscription.")
         .WithDescription("Adds a reminder rule for a given subscription. A maximum of three reminder rules can be created per subscription.")
         .WithTags("Reminders")
-        .Produces<CreateReminderResponse>(200, "application/json")
-        .Produces(400)
-        .Produces(401)
-        .Produces(404)
-        .Produces(409)
-        .Produces(500);
+        .Produces<CreateReminderResponse>(200, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict)
+        .Produces(StatusCodes.Status500InternalServerError);
     
     private static async Task<IResult> Handle(
-        [FromRoute] Guid subscriptionId,
         [FromBody] CreateReminderRequest request,
         RenuMateDbContext db,
         IValidator<CreateReminderRequest> validator,
@@ -35,15 +34,6 @@ public abstract class CreateReminderEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
-
-        if (userId == Guid.Empty)
-        {
-            return Results.Problem(
-                statusCode: 401,
-                title: "Unauthorized",
-                detail: "User is not authenticated."
-            );
-        }
         
         var validation = await validator.ValidateAsync(request, cancellationToken);
         
@@ -54,7 +44,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
 
         var subscription = await db.Subscriptions
             .AsNoTracking()
-            .Where(s => s.Id == subscriptionId && s.UserId == userId)
+            .Where(s => s.Id == request.SubscriptionId && s.UserId == userId)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (subscription is null)
@@ -93,7 +83,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
         var utcTime = utcDateTime.TimeOfDay;
         
         var similarExists = await db.ReminderRules
-            .AnyAsync(r => r.SubscriptionId == subscriptionId
+            .AnyAsync(r => r.SubscriptionId == request.SubscriptionId
                            && r.DaysBeforeRenewal == request.DaysBeforeRenewal
                            && r.NotifyTimeUtc == utcTime, cancellationToken);
 
@@ -107,7 +97,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
         }
 
         var remindersCount = await db.ReminderRules
-            .Where(r => r.SubscriptionId == subscriptionId)
+            .Where(r => r.SubscriptionId == request.SubscriptionId)
             .CountAsync(cancellationToken);
 
         if (remindersCount >= 3)
@@ -118,35 +108,23 @@ public abstract class CreateReminderEndpoint : IEndpoint
                 detail: "You cannot create more than 3 reminders for a single subscription."
             );
         }
-
-        var nextReminder = subscription.RenewalDate
-            .AddDays(-request.DaysBeforeRenewal)
-            .Add(utcTime);
-            
-        while (nextReminder <= DateTime.UtcNow)
-        {
-            nextReminder = subscription.Plan switch
-            {
-                SubscriptionPlan.Monthly => nextReminder.AddMonths(1),
-                SubscriptionPlan.Quarterly => nextReminder.AddMonths(3),
-                SubscriptionPlan.Annual => nextReminder.AddYears(1),
-                SubscriptionPlan.Custom when subscription.CustomPeriodInDays.HasValue 
-                    => nextReminder.AddDays(subscription.CustomPeriodInDays.Value),
-                _ => throw new InvalidOperationException("Unknown subscription plan")
-            };
-        }
         
         var reminderRule = new ReminderRule
         {
-            SubscriptionId = subscriptionId,
+            SubscriptionId = request.SubscriptionId,
             DaysBeforeRenewal = request.DaysBeforeRenewal,
             NotifyTimeUtc = utcTime
         };
+        
+        var scheduledTime = reminderRule.CalculateNextOccurrence(
+            subscription.RenewalDate, 
+            subscription.Plan, 
+            subscription.CustomPeriodInDays);
 
         var nextReminderOccurrence = new ReminderOccurrence
         {
             ReminderRuleId = reminderRule.Id,
-            ScheduledAt = nextReminder,
+            ScheduledAt = scheduledTime,
             IsSent = false
         };
         
@@ -157,17 +135,17 @@ public abstract class CreateReminderEndpoint : IEndpoint
             await db.SaveChangesAsync(cancellationToken);
             
             return Results.Ok(new CreateReminderResponse
-            {
-                Id = reminderRule.Id,
-                SubscriptionId = reminderRule.SubscriptionId,
-                DaysBeforeRenewal = reminderRule.DaysBeforeRenewal,
-                NotifyTime = reminderRule.NotifyTimeUtc,
-                NextReminder = nextReminder
-            });
+            (
+                reminderRule.Id,
+                reminderRule.SubscriptionId,
+                reminderRule.DaysBeforeRenewal,
+                reminderRule.NotifyTimeUtc,
+                scheduledTime
+            ));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error while creating reminder for subscription {SubscriptionId}.", subscriptionId);
+            logger.LogError(ex, "Error while creating reminder for subscription {SubscriptionId}.", request.SubscriptionId);
             
             return Results.Problem(
                 statusCode: 500,

@@ -2,12 +2,7 @@ using FluentValidation;
 
 namespace RenuMate.Users.RequestReactivate;
 
-public class ReactivateRequest
-{
-    public string Email { get; set; } = null!;
-}
-
-public class ReactivateRequestValidator : AbstractValidator<ReactivateRequest>
+public class ReactivateRequestValidator : AbstractValidator<ReactivateUserRequest>
 {
     public ReactivateRequestValidator()
     {

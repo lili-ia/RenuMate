@@ -9,16 +9,22 @@ public class SubscriptionRenewalDateUpdatedEventHandler(RenuMateDbContext db) : 
 {
     public async Task Handle(SubscriptionRenewalDateUpdatedEvent notification, CancellationToken cancellationToken)
     {
-        var occurrences = await db.ReminderOccurrences
+        var pendingOccurrences = await db.ReminderOccurrences
             .Include(r => r.ReminderRule)
             .Where(o => o.ReminderRule.SubscriptionId == notification.SubscriptionId && !o.IsSent)
             .ToListAsync(cancellationToken);
 
-        foreach (var r in occurrences)
+        foreach (var occurrence in pendingOccurrences)
         {
-            r.ScheduledAt = notification.RenewalDate
-                .AddDays(-r.ReminderRule.DaysBeforeRenewal)
-                .Add(r.ReminderRule.NotifyTimeUtc);
+            var newScheduledDate = notification.RenewalDate
+                .Date
+                .AddDays(-occurrence.ReminderRule.DaysBeforeRenewal)
+                .Add(occurrence.ReminderRule.NotifyTimeUtc);
+
+            if (occurrence.ScheduledAt != newScheduledDate)
+            {
+                occurrence.ScheduledAt = newScheduledDate;
+            }
         }
 
         await db.SaveChangesAsync(cancellationToken);

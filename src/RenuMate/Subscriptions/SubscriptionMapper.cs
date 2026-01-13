@@ -8,44 +8,45 @@ public static class SubscriptionMapper
 {
     public static Expression<Func<Subscription, SubscriptionDto>> ProjectToDto => subscription =>
         new SubscriptionDto
-        {
-            Id = subscription.Id,
-            Name = subscription.Name,
-            Plan = subscription.Plan,
-            CustomPeriodInDays = subscription.CustomPeriodInDays,
-            StartDate = subscription.StartDate,
-            RenewalDate = subscription.RenewalDate,
-            Cost = subscription.Cost,
-            Currency = subscription.Currency,
-            IsMuted = subscription.IsMuted,
-            Note = subscription.Note,
-            CancelLink = subscription.CancelLink,
-            PicLink = subscription.PicLink
-        };
-    public static Expression<Func<Subscription, SubscriptionDto>> ProjectToDetailsDto => subscription =>
+        (
+            subscription.Id,
+            subscription.Name,
+            subscription.Plan,
+            subscription.CustomPeriodInDays,
+            subscription.StartDate,
+            subscription.RenewalDate,
+            subscription.Cost,
+            subscription.Currency,
+            subscription.IsMuted,
+            subscription.Note,
+            subscription.CancelLink,
+            subscription.PicLink
+        );
+    
+    public static Expression<Func<Subscription, SubscriptionDetailsDto>> ProjectToDetailsDto => subscription =>
         new SubscriptionDetailsDto
-        {
-            Id = subscription.Id,
-            Name = subscription.Name,
-            Plan = subscription.Plan,
-            CustomPeriodInDays = subscription.CustomPeriodInDays,
-            StartDate = subscription.StartDate,
-            RenewalDate = subscription.RenewalDate,
-            Cost = subscription.Cost,
-            Currency = subscription.Currency,
-            Note = subscription.Note,
-            CancelLink = subscription.CancelLink,
-            PicLink = subscription.PicLink,
-            IsMuted = subscription.IsMuted,
-            Reminders = subscription.Reminders
+        (
+            subscription.Id,
+            subscription.Name,
+            subscription.Plan,
+            subscription.CustomPeriodInDays,
+            subscription.StartDate,
+            subscription.RenewalDate,
+            subscription.Cost,
+            subscription.Currency,
+            subscription.IsMuted,
+            subscription.Note,
+            subscription.CancelLink,
+            subscription.PicLink,
+            subscription.Reminders
                 .Select(r => new ReminderDto
-                {
-                    Id = r.Id,
-                    DaysBeforeRenewal = r.DaysBeforeRenewal,
-                    NotifyTime = r.NotifyTimeUtc,
-                    NextReminder = subscription.RenewalDate.Date
+                (
+                    r.Id,
+                    r.DaysBeforeRenewal,
+                    r.NotifyTimeUtc,
+                    subscription.RenewalDate.Date
                         .AddDays(-r.DaysBeforeRenewal)
-                        .Add(r.NotifyTimeUtc),
-                }).ToList()
-        };
+                        .Add(r.NotifyTimeUtc)
+                )).ToList()
+        );
 }

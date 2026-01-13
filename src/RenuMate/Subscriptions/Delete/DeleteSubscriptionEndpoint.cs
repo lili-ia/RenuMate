@@ -10,14 +10,14 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapDelete("api/subscriptions/{id:guid}", Handle)
-        .RequireAuthorization("EmailConfirmed")
+        .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Delete a subscription.")
         .WithDescription("Deletes the subscription with the specified ID for the authenticated user.")
         .WithTags("Subscriptions")
-        .Produces(204) 
-        .Produces(401) 
-        .Produces(404)
-        .Produces(500);
+        .Produces(StatusCodes.Status204NoContent) 
+        .Produces(StatusCodes.Status401Unauthorized) 
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status500InternalServerError);
     
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,
@@ -27,20 +27,11 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
-
-        if (userId == Guid.Empty)
-        {
-            return Results.Problem(
-                statusCode: 401,
-                title: "Unauthorized",
-                detail: "User is not authenticated."
-            );
-        }
-
+        
         try
         {
             var rows = await db.Subscriptions
-                .Where(s => s.Id == id)
+                .Where(s => s.Id == id && s.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
             if (rows == 0)

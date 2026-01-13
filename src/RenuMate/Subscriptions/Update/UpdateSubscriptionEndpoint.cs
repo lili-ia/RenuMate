@@ -1,5 +1,8 @@
+using System.Net.Mime;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RenuMate.Common;
 using RenuMate.Enums;
 using RenuMate.Extensions;
@@ -12,16 +15,16 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPut("api/subscriptions/{id:guid}", Handle)
-        .RequireAuthorization("EmailConfirmed")
+        .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Update subscription.")
         .WithDescription("Updates the details of a subscription owned by the authenticated user.")
         .WithTags("Subscriptions")
-        .Produces<UpdateSubscriptionResponse>(200, "application/json")
-        .Produces(400)
-        .Produces(401)
-        .Produces(403)
-        .Produces(404)
-        .Produces(500);
+        .Produces<UpdateSubscriptionResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status500InternalServerError);
 
     private static async Task<IResult> Handle(
         [FromRoute] Guid id,
@@ -33,15 +36,6 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
-
-        if (userId == Guid.Empty)
-        {
-            return Results.Problem(
-                statusCode: 401,
-                title: "Unauthorized",
-                detail: "User is not authenticated."
-            );
-        }
         
         var validation = await validator.ValidateAsync(request, cancellationToken);
         
@@ -69,21 +63,10 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
         Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var type);
         Enum.TryParse<Currency>(request.Currency, true, out var currency);
 
-        var renewalDate = type switch
-        {
-            SubscriptionPlan.Monthly => request.StartDate.AddMonths(1),
-            SubscriptionPlan.Quarterly => request.StartDate.AddMonths(3),
-            SubscriptionPlan.Annual => request.StartDate.AddYears(1),
-            SubscriptionPlan.Custom when request.CustomPeriodInDays.HasValue => request.StartDate.AddDays(
-                request.CustomPeriodInDays.Value),
-            _ => new DateTime()
-        };
-
         subscription.Name = request.Name;
         subscription.Plan = type;
         subscription.CustomPeriodInDays = request.CustomPeriodInDays;
         subscription.StartDate = request.StartDate;
-        subscription.RenewalDate = renewalDate;
         subscription.Cost = request.Cost;
         subscription.Currency = currency;
         subscription.Note = request.Note;
@@ -92,18 +75,36 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
         
         try
         {
+            subscription.UpdateNextRenewalDate();
+            
             await db.SaveChangesAsync(cancellationToken); 
             
             return Results.Ok(new UpdateSubscriptionResponse
-            {
-                Id = subscription.Id,
-                Name = subscription.Name,
-                RenewalDate = subscription.RenewalDate,
-                Cost = $"{subscription.Cost}{subscription.Currency}",
-                Note = subscription.Note,
-                CancelLink = subscription.CancelLink,
-                PicLink = subscription.PicLink
-            });
+            (
+                subscription.Id,
+                subscription.Name,
+                subscription.RenewalDate,
+                $"{subscription.Cost}{subscription.Currency}",
+                subscription.Note,
+                subscription.CancelLink,
+                subscription.PicLink
+            ));
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is NpgsqlException { SqlState: "23505" })  
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Subscription with this name already exists.",
+                detail: "You can not create more than one subscription with similar names."
+            );
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid request",
+                detail: ex.Message
+            );
         }
         catch (Exception ex)
         {
