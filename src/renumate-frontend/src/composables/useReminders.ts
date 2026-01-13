@@ -1,36 +1,49 @@
 import { ref, type Ref } from 'vue'
 import api from '@/api'
 import type { Subscription } from '@/types'
+import { toast, type ToastOptions } from 'vue3-toastify'
+import 'vue3-toastify/dist/index.css'
 
 export function useReminders(
   loadSubscriptions: () => Promise<void>,
   selectedSubscription: Ref<Subscription | null>,
+  fetchSummary: () => Promise<void>,
 ) {
   const showReminderModal = ref(false)
+  const isSubmitting = ref(false)
+  const reminderErrors = ref<Record<string, string[]>>({})
+
+  const clearErrors = () => {
+    reminderErrors.value = {}
+  }
 
   const reminderForm = ref({
     daysBeforeRenewal: '',
     notifyTime: '09:00',
   })
 
+  const toastConfig: ToastOptions = {
+    autoClose: 3000,
+    position: 'top-right',
+  }
+
   const openReminderModal = (sub: Subscription) => {
-    console.log('Opening reminder modal for subscription:', sub)
     selectedSubscription.value = sub
-    console.log('Selected subscription set to:', selectedSubscription.value)
     showReminderModal.value = true
-    console.log('Reminder modal is now' + (showReminderModal.value ? ' open' : ' closed'))
   }
 
   const handleAddReminder = async () => {
     if (!reminderForm.value.daysBeforeRenewal) {
-      alert('Please enter days before renewal')
+      toast.warn('Please enter days before renewal', toastConfig)
       return
     }
 
     if (!selectedSubscription.value) {
-      alert('Please select a subscription')
+      toast.error('No subscription selected', toastConfig)
       return
     }
+
+    clearErrors()
 
     const payload = {
       subscriptionId: selectedSubscription.value.id,
@@ -39,19 +52,25 @@ export function useReminders(
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }
 
-    console.log('Adding reminder with payload:', payload)
+    isSubmitting.value = true
 
     try {
       await api.post('/reminders', payload)
-      console.log('Reminder successfully created on API. Reloading subscriptions...')
+      toast.success('Reminder created successfully!', toastConfig)
       await loadSubscriptions()
+      await fetchSummary()
       closeReminderModal()
     } catch (error: any) {
-      if (error.response) {
-        const { status, data } = error.response
-        console.log(data)
+      if (error.response?.status === 400 && error.response.data?.errors) {
+        reminderErrors.value = error.response.data.errors
+        toast.error('Please correct the highlighted errors.')
+      } else {
+        const errorMessage =
+          error.response?.data?.detail || error.response?.data?.title || 'An error occurred'
+        toast.error(errorMessage, toastConfig)
       }
-      alert('Failed to add reminder. Please try again.')
+    } finally {
+      isSubmitting.value = false
     }
   }
 
@@ -62,13 +81,12 @@ export function useReminders(
 
     try {
       await api.delete(`/reminders/${reminderId}`)
-      console.log(
-        `Reminder ${reminderId} deleted successfully from API. Reloading subscriptions...`,
-      )
+      toast.info('Reminder removed', toastConfig)
       await loadSubscriptions()
-    } catch (error) {
-      console.error('Error deleting reminder via API:', error)
-      alert('Failed to delete reminder. Please try again.')
+      await fetchSummary()
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 'Failed to delete reminder'
+      toast.error(errorMessage, toastConfig)
     }
   }
 
@@ -80,9 +98,11 @@ export function useReminders(
   return {
     showReminderModal,
     reminderForm,
+    isSubmitting,
     openReminderModal,
     handleAddReminder,
     deleteReminder,
     closeReminderModal,
+    reminderErrors,
   }
 }

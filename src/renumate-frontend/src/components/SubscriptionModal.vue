@@ -2,11 +2,17 @@
 defineProps({
   isOpen: Boolean,
   isEditing: Boolean,
+  isSubmitting: Boolean,
   modelValue: Object,
   nextRenewalDate: String,
+  errors: {
+    type: Object,
+    default: () => ({}),
+  },
 })
 
 defineEmits(['close', 'save'])
+import IconSpinner from './icons/IconSpinner.vue'
 </script>
 
 <template>
@@ -27,9 +33,17 @@ defineEmits(['close', 'save'])
           <input
             v-model="modelValue.name"
             type="text"
-            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            :class="[
+              'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent',
+              errors.Name
+                ? 'border-red-500 focus:ring-red-200'
+                : 'border-gray-300 focus:ring-indigo-500',
+            ]"
             placeholder="Netflix, Spotify, etc."
           />
+          <p v-if="errors.Name" class="mt-1 text-sm text-red-600 font-medium">
+            {{ errors.Name[0] }}
+          </p>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -39,14 +53,28 @@ defineEmits(['close', 'save'])
               v-model="modelValue.cost"
               type="number"
               step="0.01"
-              class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              :class="[
+                'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent',
+                errors.Cost
+                  ? 'border-red-500 focus:ring-red-200'
+                  : 'border-gray-300 focus:ring-indigo-500',
+              ]"
             />
+            <p v-if="errors.Cost" class="mt-1 text-sm text-red-600 font-medium">
+              {{ errors.Cost[0] }}
+            </p>
           </div>
+
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">Currency</label>
             <select
               v-model="modelValue.currency"
-              class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              :class="[
+                'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent',
+                errors.Currency
+                  ? 'border-red-500 focus:ring-red-200'
+                  : 'border-gray-300 focus:ring-indigo-500',
+              ]"
             >
               <option>UAH</option>
               <option>USD</option>
@@ -73,11 +101,16 @@ defineEmits(['close', 'save'])
           <input
             v-model="modelValue.customPeriodInDays"
             type="number"
-            min="1"
-            placeholder="e.g. 45"
-            class="w-full px-4 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-indigo-50"
+            :class="[
+              'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent bg-indigo-50',
+              errors.CustomPeriodInDays
+                ? 'border-red-500 focus:ring-red-200'
+                : 'border-indigo-300 focus:ring-indigo-500',
+            ]"
           />
-          <p class="text-xs text-indigo-600 mt-1">Enter the number of days between billings.</p>
+          <p v-if="errors.CustomPeriodInDays" class="mt-1 text-sm text-red-600 font-medium">
+            {{ errors.CustomPeriodInDays[0] }}
+          </p>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -115,9 +148,20 @@ defineEmits(['close', 'save'])
         <div class="flex gap-3 pt-4">
           <button
             @click="$emit('save')"
-            class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition font-semibold"
+            :disabled="isSubmitting"
+            class="flex-1 flex items-center justify-center bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {{ isEditing ? 'Update' : 'Add' }} Subscription
+            <IconSpinner v-if="isSubmitting" class="-ml-1 mr-3 h-5 w-5 text-white" />
+
+            <span>
+              {{
+                isSubmitting
+                  ? 'Processing...'
+                  : isEditing
+                    ? 'Update Subscription'
+                    : 'Add Subscription'
+              }}
+            </span>
           </button>
           <button
             @click="$emit('close')"

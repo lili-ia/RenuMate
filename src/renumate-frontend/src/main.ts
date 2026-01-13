@@ -2,13 +2,19 @@ import './assets/main.css'
 
 import { createApp } from 'vue'
 import { createAuth0 } from '@auth0/auth0-vue'
-import ToastPlugin from 'vue-toast-notification'
+import 'vue3-toastify/dist/index.css'
+import Vue3Toastify, { type ToastContainerOptions } from 'vue3-toastify'
 
 import App from './App.vue'
 
 const app = createApp(App)
 
 console.log(import.meta.env.AUTH0_DOMAIN)
+
+app.use(Vue3Toastify, {
+  autoClose: 3000,
+  position: 'bottom-right',
+} as ToastContainerOptions)
 
 app.use(
   createAuth0({
@@ -23,7 +29,5 @@ app.use(
     useRefreshTokens: true,
   }),
 )
-
-app.use(ToastPlugin)
 
 app.mount('#app')

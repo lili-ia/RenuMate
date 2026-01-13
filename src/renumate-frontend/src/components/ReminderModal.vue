@@ -1,11 +1,17 @@
 <script setup>
 defineProps({
   isOpen: Boolean,
+  isSubmitting: Boolean,
   subscription: Object,
   modelValue: Object,
+  errors: {
+    type: Object,
+    default: () => ({}),
+  },
 })
 
 defineEmits(['close', 'save'])
+import IconSpinner from './icons/IconSpinner.vue'
 </script>
 
 <template>
@@ -28,9 +34,17 @@ defineEmits(['close', 'save'])
             v-model="modelValue.daysBeforeRenewal"
             type="number"
             min="1"
-            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            :class="[
+              'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-colors',
+              errors.DaysBeforeRenewal
+                ? 'border-red-500 bg-red-50 focus:ring-red-500'
+                : 'border-gray-300 focus:ring-indigo-500',
+            ]"
             placeholder="e.g., 3"
           />
+          <p v-if="errors.DaysBeforeRenewal" class="mt-1 text-sm text-red-600 font-medium">
+            {{ errors.DaysBeforeRenewal[0] }}
+          </p>
         </div>
 
         <div>
@@ -38,8 +52,16 @@ defineEmits(['close', 'save'])
           <input
             v-model="modelValue.notifyTime"
             type="time"
-            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+            :class="[
+              'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-colors',
+              errors.NotifyTime
+                ? 'border-red-500 bg-red-50 focus:ring-red-500'
+                : 'border-gray-300 focus:ring-indigo-500',
+            ]"
           />
+          <p v-if="errors.NotifyTime" class="mt-1 text-sm text-red-600 font-medium">
+            {{ errors.NotifyTime[0] }}
+          </p>
           <p class="text-xs text-gray-500 mt-1">
             Pick the time of day you want to receive the alert.
           </p>
@@ -48,9 +70,11 @@ defineEmits(['close', 'save'])
         <div class="flex gap-3 pt-4">
           <button
             @click="$emit('save')"
-            class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition font-semibold"
+            :disabled="isSubmitting"
+            class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition font-semibold disabled:bg-indigo-400 disabled:cursor-not-allowed flex justify-center items-center"
           >
-            Add Reminder
+            <IconSpinner v-if="isSubmitting" class="-ml-1 mr-3 h-5 w-5 text-white" />
+            {{ isSubmitting ? 'Adding...' : 'Add Reminder' }}
           </button>
           <button
             @click="$emit('close')"

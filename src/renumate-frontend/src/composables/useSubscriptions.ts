@@ -1,7 +1,8 @@
 import { ref, computed } from 'vue'
 import api from '@/api'
 import { formatDate } from '@/utils/formatters.ts'
-import type { Subscription } from '@/types'
+import type { PaginatedResponse, Subscription } from '@/types'
+import { toast } from 'vue3-toastify'
 
 interface SubscriptionForm {
   id?: string
@@ -16,6 +17,9 @@ interface SubscriptionForm {
 }
 
 export function useSubscriptions() {
+  const loading = ref(true)
+  const summaryLoading = ref(true)
+
   const subscriptions = ref<Subscription[]>([])
   const totalCost = ref<number>(0)
   const selectedCurrency = ref<string>('USD')
@@ -23,14 +27,36 @@ export function useSubscriptions() {
   const selectedSubscription = ref<Subscription | null>(null)
   const showSubscriptionModal = ref(false)
   const editingSubscription = ref<Subscription | null>(null)
+  const isSubmitting = ref(false)
+
+  const currentPage = ref(1)
+  const pageSize = ref(10)
+  const totalCount = ref(0)
+  const totalPages = ref(0)
+  const activeSubscriptionsCount = ref(0)
+  const totalRemindersCount = ref(0)
 
   const popularCurrencies = [
     { code: 'USD', name: 'US Dollar', symbol: '$' },
     { code: 'EUR', name: 'Euro', symbol: '€' },
     { code: 'UAH', name: 'Hryvnia', symbol: '₴' },
     { code: 'PLN', name: 'Złoty', symbol: 'zł' },
-    { code: 'GBP', name: 'Pound', symbol: '£' },
-    { code: 'JPY', name: 'Yen', symbol: '¥' },
+    { code: 'GBP', name: 'British Pound', symbol: '£' },
+    { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
+    { code: 'CAD', name: 'Canadian Dollar', symbol: 'CA$' },
+    { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
+    { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
+    { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
+    { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
+    { code: 'BRL', name: 'Brazilian Real', symbol: 'R$' },
+    { code: 'TRY', name: 'Turkish Lira', symbol: '₺' },
+    { code: 'MXN', name: 'Mexican Peso', symbol: 'Mex$' },
+    { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$' },
+    { code: 'HKD', name: 'Hong Kong Dollar', symbol: 'HK$' },
+    { code: 'SEK', name: 'Swedish Krona', symbol: 'kr' },
+    { code: 'NOK', name: 'Norwegian Krone', symbol: 'kr' },
+    { code: 'ILS', name: 'Israeli New Shekel', symbol: '₪' },
+    { code: 'ZAR', name: 'South African Rand', symbol: 'R' },
   ]
 
   const formData = ref<SubscriptionForm>({
@@ -44,19 +70,33 @@ export function useSubscriptions() {
     isMuted: false,
   })
 
-  const activeSubscriptionsCount = computed(() => {
-    return subscriptions.value.filter((s) => !s.isMuted).length
-  })
-
   const loadSubscriptions = async () => {
+    loading.value = true
     try {
-      const response = await api.get('/subscriptions')
+      const response = await api.get<PaginatedResponse<Subscription>>('/subscriptions', {
+        params: {
+          page: currentPage.value,
+          pageSize: pageSize.value,
+        },
+      })
       subscriptions.value = response.data.items
-
-      console.log('Subscriptions loaded successfully.')
+      totalCount.value = response.data.totalCount
+      totalPages.value = response.data.totalPages
+      currentPage.value = response.data.page
+      console.log('totalPages:', totalPages.value)
     } catch (error) {
-      console.error('Error loading subscriptions:', error)
+      toast.error('Failed to load subscriptions')
       subscriptions.value = []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const setPage = (page: number) => {
+    console.log('setPage called with', page)
+    if (page >= 1 && page <= totalPages.value) {
+      currentPage.value = page
+      loadSubscriptions()
     }
   }
 
@@ -72,7 +112,6 @@ export function useSubscriptions() {
       notes: sub.notes ?? '',
       isMuted: sub.isMuted,
     }
-
     editingSubscription.value = sub
     showSubscriptionModal.value = true
   }
@@ -101,24 +140,28 @@ export function useSubscriptions() {
     while (nextDate <= today) {
       const prevTime = nextDate.getTime()
       nextDate = addPeriod(nextDate)
-
       if (nextDate.getTime() <= prevTime) break
     }
 
     return nextDate.toISOString().split('T')[0]
   })
 
-  const fetchTotal = async () => {
+  const fetchSummary = async () => {
+    summaryLoading.value = true
     try {
-      const response = await api.get('/subscriptions/total', {
+      const response = await api.get('/subscriptions/summary', {
         params: {
           currency: selectedCurrency.value,
           period: selectedPeriod.value,
         },
       })
-      totalCost.value = response.data
+      totalCost.value = response.data.totalCost
+      activeSubscriptionsCount.value = response.data.activeSubscriptionsCount
+      totalRemindersCount.value = response.data.totalRemindersCount
     } catch (error) {
-      console.error('Failed to fetch analytics', error)
+      toast.error('Could not calculate total cost')
+    } finally {
+      summaryLoading.value = false
     }
   }
 
@@ -127,7 +170,7 @@ export function useSubscriptions() {
       name: '',
       cost: '',
       currency: 'UAH',
-      plan: 'monthly',
+      plan: 'Monthly',
       customPeriodInDays: null,
       startDate: '',
       notes: '',
@@ -137,14 +180,22 @@ export function useSubscriptions() {
     showSubscriptionModal.value = false
   }
 
+  const formErrors = ref<Record<string, string[]>>({})
+
+  const clearErrors = () => {
+    formErrors.value = {}
+  }
+
   const handleSubmit = async () => {
+    clearErrors()
+
     if (!formData.value.name || !formData.value.cost) {
-      alert('Please fill in required fields')
+      toast.warn('Please fill in required fields')
       return
     }
 
     if (formData.value.plan === 'Custom' && !formData.value.customPeriodInDays) {
-      alert('Please specify the custom period in days')
+      toast.warn('Please specify the custom period in days')
       return
     }
 
@@ -154,30 +205,30 @@ export function useSubscriptions() {
         formData.value.plan === 'Custom' ? formData.value.customPeriodInDays : null,
     }
 
+    isSubmitting.value = true
     try {
       if (editingSubscription.value) {
-        const subId = editingSubscription.value.id
-        await api.put(`/subscriptions/${subId}`, payload)
-        console.log(`Subscription ${subId} updated successfully on API.`)
+        await api.put(`/subscriptions/${editingSubscription.value.id}`, payload)
       } else {
         await api.post('/subscriptions', payload)
-        console.log('Subscription created successfully on API.')
       }
 
+      toast.success('Subscription saved successfully')
+      resetForm()
       await loadSubscriptions()
+      await fetchSummary()
     } catch (error: any) {
-      if (error.response) {
-        const { status, data } = error.response
-        if (status === 403) {
-          alert('Similar subscription already exists.')
-        }
-        console.log(data)
+      if (error.response?.status === 400 && error.response.data?.errors) {
+        formErrors.value = error.response.data.errors
+        toast.error('Please correct the highlighted errors.')
+      } else {
+        const message = error.response?.data?.detail || 'An unexpected error occurred'
+        toast.error(message)
       }
-      alert('Failed to save subscription. Check the console.')
-      return
+    } finally {
+      isSubmitting.value = false
+      loading.value = false
     }
-
-    resetForm()
   }
 
   const deleteSubscription = async (id: string) => {
@@ -187,11 +238,11 @@ export function useSubscriptions() {
 
     try {
       await api.delete(`/subscriptions/${id}`)
-      console.log(`Subscription ${id} deleted successfully from API. Reloading data...`)
+      toast.info('Subscription deleted')
       await loadSubscriptions()
-    } catch (error) {
-      console.error('Error deleting subscription via API:', error)
-      alert('Failed to delete subscription. Please try again.')
+      await fetchSummary()
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to delete subscription')
     }
   }
 
@@ -200,36 +251,38 @@ export function useSubscriptions() {
     if (!sub) return
 
     const newMuteStatus = !sub.isMuted
-
     try {
-      await api.patch(`/subscriptions/${id}`, {
-        isMuted: newMuteStatus,
-      })
-
+      await api.patch(`/subscriptions/${id}`, { isMuted: newMuteStatus })
       sub.isMuted = newMuteStatus
-
-      console.log(`Subscription ${id} is now ${newMuteStatus ? 'Muted' : 'Active'}`)
+      toast.success(newMuteStatus ? 'Subscription muted' : 'Subscription activated', {
+        autoClose: 1500,
+      })
     } catch (error) {
-      console.error('Error toggling mute status:', error)
-      alert('Failed to update status. Please try again.')
+      toast.error('Failed to update status')
+    } finally {
+      loading.value = false
     }
   }
-
-  const totalReminders = computed(() => {
-    return subscriptions.value.reduce((sum, s) => sum + (s.reminders?.length || 0), 0)
-  })
 
   const openAddSubscriptionModal = () => {
     showSubscriptionModal.value = true
   }
 
   return {
+    loading,
+    summaryLoading,
     subscriptions,
+    currentPage,
+    pageSize,
+    totalPages,
+    totalCount,
+    totalRemindersCount,
+    setPage,
     resetForm,
     popularCurrencies,
     activeSubscriptionsCount,
     loadSubscriptions,
-    fetchTotal,
+    fetchSummary,
     selectedCurrency,
     selectedPeriod,
     totalCost,
@@ -237,12 +290,13 @@ export function useSubscriptions() {
     calculatedNextRenewalDate,
     editingSubscription,
     showSubscriptionModal,
+    isSubmitting,
     editSubscription,
     deleteSubscription,
     toggleActive,
     handleSubmit,
-    totalReminders,
     openAddSubscriptionModal,
     selectedSubscription,
+    formErrors,
   }
 }

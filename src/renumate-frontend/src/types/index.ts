@@ -19,3 +19,11 @@ export interface Subscription {
   notes?: string
   reminders?: Reminder[]
 }
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+}
