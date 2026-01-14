@@ -17,6 +17,7 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPut("api/subscriptions/{id:guid}", Handle)
         .RequireAuthorization("VerifiedEmailOnly")
+        .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Update subscription.")
         .WithDescription("Updates the details of a subscription owned by the authenticated user.")
         .WithTags("Subscriptions")

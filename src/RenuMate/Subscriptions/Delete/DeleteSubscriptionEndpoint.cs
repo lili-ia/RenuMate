@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.Middleware;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -11,6 +12,7 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
     public static void Map(IEndpointRouteBuilder app) => app
         .MapDelete("api/subscriptions/{id:guid}", Handle)
         .RequireAuthorization("VerifiedEmailOnly")
+        .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Delete a subscription.")
         .WithDescription("Deletes the subscription with the specified ID for the authenticated user.")
         .WithTags("Subscriptions")

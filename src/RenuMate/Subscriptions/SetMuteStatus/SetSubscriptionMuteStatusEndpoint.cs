@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.Middleware;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -11,6 +12,7 @@ public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPatch("api/subscriptions/{id:guid}", Handle)
         .RequireAuthorization("VerifiedEmailOnly")
+        .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Set subscription mute status.")
         .WithDescription("Updates the IsMuted flag for a subscription owned by the authenticated user.")
         .WithTags("Subscriptions")

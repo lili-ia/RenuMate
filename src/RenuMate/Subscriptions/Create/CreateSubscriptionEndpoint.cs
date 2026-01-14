@@ -7,6 +7,7 @@ using RenuMate.Common;
 using RenuMate.Entities;
 using RenuMate.Enums;
 using RenuMate.Extensions;
+using RenuMate.Middleware;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -17,6 +18,7 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/subscriptions", Handle)
         .RequireAuthorization("VerifiedEmailOnly")
+        .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Create a subscription.")
         .WithDescription("Creates a new subscription for the authenticated user, calculating the renewal date based on the plan and optional custom period.")
         .WithTags("Subscriptions")
@@ -52,18 +54,20 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
             Name = request.Name,
             Plan = plan,
             CustomPeriodInDays = request.CustomPeriodInDays,
+            TrialPeriodInDays = request.TrialPeriodInDays,
             StartDate = request.StartDate,
             Cost = request.Cost,
             Currency = currency,
             IsMuted = false,
             Note = request.Note,
             CancelLink = request.CancelLink,
+            PicLink = request.PicLink,
             UserId = userId
         };
           
         try
         {
-            subscription.UpdateNextRenewalDate();
+            subscription.UpdateNextRenewalDate(isInitialization: true);
 
             await db.Subscriptions.AddAsync(subscription, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);

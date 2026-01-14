@@ -1,5 +1,6 @@
 using System.Net.Mime;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using RenuMate.Common;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
@@ -21,11 +22,19 @@ public abstract class GetUserInfoEndpoint : IEndpoint
     private static async Task<IResult> Handle(
         RenuMateDbContext db,
         IUserContext userContext,
+        IMemoryCache cache,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
-        var info = await db.Users
+        var cacheKey = $"info_user_{userId}";
+
+        if (cache.TryGetValue(cacheKey, out UserInfoResponse? info))
+        {
+            return Results.Ok(info);
+        }
+
+        info = await db.Users
             .AsNoTracking()
             .Where(u => u.Id == userId)
             .Select(u => new UserInfoResponse
@@ -46,6 +55,8 @@ public abstract class GetUserInfoEndpoint : IEndpoint
                 detail: "The authenticated user could not be found in the database."
             );
         }
+
+        cache.Set(cacheKey, info, TimeSpan.FromHours(24));
         
         return Results.Ok(info);
     }

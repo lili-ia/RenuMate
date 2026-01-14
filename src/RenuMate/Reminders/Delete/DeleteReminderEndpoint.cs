@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
+using RenuMate.Middleware;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -11,6 +12,7 @@ public abstract class DeleteReminderEndpoint : IEndpoint
     public static void Map(IEndpointRouteBuilder app) => app
         .MapDelete("api/reminders/{id:guid}", Handle)
         .RequireAuthorization("VerifiedEmailOnly")
+        .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Deletes a reminder.")
         .WithDescription("Deletes a specific reminder rule for a given subscription belonging to the authenticated user.")
         .WithTags("Reminders")

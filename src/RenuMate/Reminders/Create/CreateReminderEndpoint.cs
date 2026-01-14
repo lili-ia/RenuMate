@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
 using RenuMate.Entities;
 using RenuMate.Extensions;
+using RenuMate.Middleware;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -15,6 +16,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/reminders", Handle)
         .RequireAuthorization("VerifiedEmailOnly")
+        .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Creates a new reminder for a subscription.")
         .WithDescription("Adds a reminder rule for a given subscription. A maximum of three reminder rules can be created per subscription.")
         .WithTags("Reminders")
