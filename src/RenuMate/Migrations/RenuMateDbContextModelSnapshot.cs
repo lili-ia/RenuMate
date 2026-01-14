@@ -36,7 +36,7 @@ namespace RenuMate.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<Guid>("ReminderRuleId")
+                    b.Property<Guid?>("ReminderRuleId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ScheduledAt")
@@ -139,6 +139,9 @@ namespace RenuMate.Migrations
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("TrialPeriodInDays")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -201,8 +204,7 @@ namespace RenuMate.Migrations
                     b.HasOne("RenuMate.Entities.ReminderRule", "ReminderRule")
                         .WithMany("ReminderOccurrences")
                         .HasForeignKey("ReminderRuleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ReminderRule");
                 });

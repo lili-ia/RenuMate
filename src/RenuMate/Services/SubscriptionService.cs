@@ -11,7 +11,7 @@ public class SubscriptionService(RenuMateDbContext db, ILogger<SubscriptionServi
         var now = DateTime.UtcNow.Date;
 
         var subscriptions = await db.Subscriptions
-            .Where(s => s.RenewalDate.Date == now)
+            .Where(s => s.RenewalDate.Date <= now)
             .ToListAsync(cancellationToken);
 
         foreach (var s in subscriptions)

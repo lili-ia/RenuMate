@@ -5,6 +5,7 @@ public sealed record CreateSubscriptionRequest
     string Name,
     string Plan,
     int? CustomPeriodInDays,
+    int? TrialPeriodInDays,
     DateTime StartDate,
     decimal Cost,
     string Currency,

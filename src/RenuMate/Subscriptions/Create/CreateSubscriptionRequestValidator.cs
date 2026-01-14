@@ -25,6 +25,18 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
                 .NotNull().WithMessage("Custom period is required for custom subscriptions.")
                 .GreaterThan(0).WithMessage("Custom period must be greater than zero.");
         });
+        
+        When(x => x.Plan.Equals(nameof(SubscriptionPlan.Trial), StringComparison.OrdinalIgnoreCase), () => 
+        {
+            RuleFor(x => x.TrialPeriodInDays)
+                .NotNull().WithMessage("Trial period is required for trial subscriptions.")
+                .GreaterThan(0).WithMessage("Trial period must be greater than zero.");
+            
+            RuleFor(x => x)
+                .Must(x => x.StartDate.AddDays(x.TrialPeriodInDays ?? 0) > DateTime.UtcNow.Date)
+                .WithMessage("You cannot add a trial that has already expired.")
+                .WithName("TrialPeriodInDays");
+        });
 
         When(x => !x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase), () => 
         {

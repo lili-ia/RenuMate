@@ -6,6 +6,7 @@ using Npgsql;
 using RenuMate.Common;
 using RenuMate.Enums;
 using RenuMate.Extensions;
+using RenuMate.Middleware;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -75,7 +76,7 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
         
         try
         {
-            subscription.UpdateNextRenewalDate();
+            subscription.UpdateNextRenewalDate(isInitialization: true);
             
             await db.SaveChangesAsync(cancellationToken); 
             
