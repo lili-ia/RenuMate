@@ -62,24 +62,25 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
             return Results.Forbid();
         }
         
-        Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var type);
-        Enum.TryParse<Currency>(request.Currency, true, out var currency);
+        Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var newPlan);
+        Enum.TryParse<Currency>(request.Currency, true, out var newCurrency);
 
-        subscription.Name = request.Name;
-        subscription.Plan = type;
-        subscription.CustomPeriodInDays = request.CustomPeriodInDays;
-        subscription.StartDate = request.StartDate;
-        subscription.Cost = request.Cost;
-        subscription.Currency = currency;
-        subscription.Note = request.Note;
-        subscription.CancelLink = request.CancelLink;
-        subscription.PicLink = request.PicLink;
-        
         try
         {
-            subscription.UpdateNextRenewalDate(isInitialization: true);
-            
-            await db.SaveChangesAsync(cancellationToken); 
+            subscription.UpdateDetails(request.Name, request.Note, request.CancelLink, request.PicLink);
+            subscription.ChangePricing(request.Cost, newCurrency);
+
+            if (subscription.StartDate != request.StartDate)
+            {
+                subscription.RescheduleStartDate(request.StartDate);
+            }
+
+            if (subscription.Plan != newPlan)
+            {
+                subscription.ChangePlan(newPlan, request.CustomPeriodInDays);
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
             
             return Results.Ok(new UpdateSubscriptionResponse
             (
@@ -98,24 +99,6 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
                 statusCode: StatusCodes.Status403Forbidden,
                 title: "Subscription with this name already exists.",
                 detail: "You can not create more than one subscription with similar names."
-            );
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Invalid request",
-                detail: ex.Message
-            );
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error while updating subscription {SubscriptionId}.", id);
-            
-            return Results.Problem(
-                statusCode: 500,
-                title: "Internal server error",
-                detail: "An unexpected error occurred while updating the subscription."
             );
         }
     }

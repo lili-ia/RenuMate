@@ -55,6 +55,9 @@ public class RenuMateDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("Users");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever();
             
             entity.HasKey(e => e.Id);
             
@@ -80,6 +83,9 @@ public class RenuMateDbContext : DbContext
         modelBuilder.Entity<Subscription>(entity =>
         {
             entity.ToTable("Subscriptions");
+            
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever();
             
             entity.HasKey(e => e.Id);
             
@@ -123,6 +129,9 @@ public class RenuMateDbContext : DbContext
             
             entity.HasKey(e => e.Id);
             
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever();
+            
             entity.Property(r => r.DaysBeforeRenewal)
                 .IsRequired()
                 .HasDefaultValue(1);
@@ -142,6 +151,9 @@ public class RenuMateDbContext : DbContext
             entity.ToTable("ReminderOccurrences");
 
             entity.HasKey(o => o.Id);
+            
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever();
 
             entity.Property(o => o.ScheduledAt)
                 .IsRequired();

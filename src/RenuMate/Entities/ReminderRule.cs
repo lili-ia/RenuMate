@@ -1,36 +1,65 @@
-using RenuMate.Enums;
+using RenuMate.Exceptions;
 
 namespace RenuMate.Entities;
 
 public class ReminderRule : BaseEntity
 {
-    public Guid SubscriptionId { get; init; }
+    public Guid SubscriptionId { get; private set; }
     
-    public Subscription Subscription { get; init; } = null!;
+    public Subscription Subscription { get; private set; } = null!;
 
-    public TimeSpan NotifyTimeUtc { get; init; }
+    public TimeSpan NotifyTimeUtc { get; private set; }
     
-    public int DaysBeforeRenewal { get; init; }
+    public int DaysBeforeRenewal { get; private set; }
 
-    public ICollection<ReminderOccurrence> ReminderOccurrences { get; init; } = [];
+    public IReadOnlyCollection<ReminderOccurrence> ReminderOccurrences => _occurrences.AsReadOnly();
     
-    public DateTime CalculateNextOccurrence(DateTime subscriptionRenewalDate, SubscriptionPlan plan, int? customDays)
+    public static ReminderRule Create(Guid subscriptionId, TimeSpan notifyTimeUtc, int daysBeforeRenewal)
     {
-        var nextReminder = subscriptionRenewalDate.Date
+        if (daysBeforeRenewal < 0)
+        {
+            throw new DomainValidationException("Days before renewal cannot be negative.");
+        }
+        
+        return new ReminderRule
+        {
+            SubscriptionId = subscriptionId,
+            NotifyTimeUtc = notifyTimeUtc,
+            DaysBeforeRenewal = daysBeforeRenewal
+        };
+    }
+    
+    public ReminderOccurrence? CreateOccurrence(DateTime subscriptionRenewalDate)
+    {
+        var scheduledAt = subscriptionRenewalDate.Date
             .AddDays(-DaysBeforeRenewal)
             .Add(NotifyTimeUtc);
 
-        while (nextReminder <= DateTime.UtcNow)
+        if (scheduledAt <= DateTime.UtcNow)
         {
-            nextReminder = plan switch
-            {
-                SubscriptionPlan.Monthly => nextReminder.AddMonths(1),
-                SubscriptionPlan.Quarterly => nextReminder.AddMonths(3),
-                SubscriptionPlan.Annual => nextReminder.AddYears(1),
-                SubscriptionPlan.Custom when customDays.HasValue => nextReminder.AddDays(customDays.Value),
-                _ => throw new InvalidOperationException("Unknown plan")
-            };
+            return null;
         }
-        return nextReminder;
+
+        return ReminderOccurrence.Create(Id, scheduledAt);
     }
+    
+    public void AddOccurrence(ReminderOccurrence occurrence)
+    {
+        if (occurrence is null)
+        {
+            throw new ArgumentNullException(nameof(occurrence));
+        }
+        
+        if (_occurrences.Any(o => o.ScheduledAt == occurrence.ScheduledAt))
+        {
+            throw new DomainConflictException(
+                $"A reminder occurrence for this rule is already scheduled at {occurrence.ScheduledAt}.");
+        }
+
+        _occurrences.Add(occurrence);
+    }
+    
+    private ReminderRule() { }
+    
+    private readonly List<ReminderOccurrence> _occurrences = [];
 }

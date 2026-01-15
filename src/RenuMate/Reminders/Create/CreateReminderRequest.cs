@@ -1,9 +1,17 @@
 namespace RenuMate.Reminders.Create;
 
-public sealed record CreateReminderRequest
-(
+public record CreateReminderRequest(
     Guid SubscriptionId,
-    int DaysBeforeRenewal,  
     TimeSpan NotifyTime,
-    string Timezone
-);
+    string Timezone,
+    int DaysBeforeRenewal)
+{
+    public TimeSpan GetUtcNotifyTime()
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(Timezone);
+        var baseDate = DateTime.Today.Add(NotifyTime);
+        
+        return TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(baseDate, DateTimeKind.Unspecified), tz).TimeOfDay;
+    }
+}

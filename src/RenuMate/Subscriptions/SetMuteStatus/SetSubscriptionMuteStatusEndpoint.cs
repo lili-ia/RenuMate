@@ -30,34 +30,22 @@ public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
-        
-        try
-        {
-            var rows = await db.Subscriptions
-                .Where(s => s.Id == id && s.UserId == userId)
-                .ExecuteUpdateAsync(setter =>
-                    setter.SetProperty(s => s.IsMuted, request.IsMuted), cancellationToken);
 
-            if (rows == 0)
-            {
-                return Results.Problem(
-                    statusCode: 404,
-                    title: "Subscription not found",
-                    detail: "No subscription exists with the specified ID for the current user."
-                );
-            }
+        var subscription = await db.Subscriptions
+            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userContext.UserId, cancellationToken);
 
-            return Results.NoContent();
-        }
-        catch (Exception ex)
+        if (subscription is null)
         {
-            logger.LogError(ex, "Error while setting mute status for subscription {SubscriptionId}.", id);
-            
             return Results.Problem(
-                statusCode: 500,
-                title: "Internal server error",
-                detail: "An unexpected error occurred while setting mute status."
+                statusCode: 404,
+                title: "Subscription not found",
+                detail: "No subscription exists with the specified ID for the current user."
             );
         }
+
+        subscription.SetMuteStatus(request.IsMuted);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.NoContent();
     }
 }

@@ -2,6 +2,6 @@ using MediatR;
 
 namespace RenuMate.Events;
 
-public sealed record SubscriptionRenewalDateUpdatedEvent(
+public sealed record SubscriptionRenewalDateOrPlanUpdatedEvent(
     Guid SubscriptionId, 
     DateTime RenewalDate) : INotification;

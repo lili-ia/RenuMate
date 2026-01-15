@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using RenuMate.Entities;
+using RenuMate.Exceptions;
 
 namespace RenuMate.Middleware;
 
@@ -10,34 +12,37 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         Exception exception, 
         CancellationToken cancellationToken)
     {
-        if (exception is UnauthorizedAccessException)
+        var (statusCode, title, logAsError) = exception switch
         {
-            logger.LogWarning("Unauthorized access attempt: {Message}", exception.Message);
-
-            httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await httpContext.Response.WriteAsJsonAsync(new ProblemDetails
-            {
-                Status = StatusCodes.Status401Unauthorized,
-                Title = "Unauthorized",
-                Detail = exception.Message
-            }, cancellationToken);
-
-            return true; 
-        }
-        
-        logger.LogError(exception, "Exception occured: {Message}", exception.Message);
-
-        var problemDetails= new ProblemDetails
-        {
-            Title = "Server error",
-            Status = StatusCodes.Status500InternalServerError,
-            Detail = "An internal error occured. Please try later."
+            DomainValidationException => (StatusCodes.Status400BadRequest, "Business Validation Error", false),
+            DomainConflictException => (StatusCodes.Status409Conflict, "Business Rule Conflict", false),
+            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized", false),
+            _ => (StatusCodes.Status500InternalServerError, "Server Error", true)
         };
 
-        httpContext.Response.StatusCode = problemDetails.Status.Value;
+        if (logAsError)
+        {
+            logger.LogError(exception, "An unhandled exception occurred: {Message}", exception.Message);
+        }
+        else
+        {
+            logger.LogWarning("Domain logic violation: {Message}", exception.Message);
+        }
+
+        var problemDetails = new ProblemDetails
+        {
+            Status = statusCode,
+            Title = title,
+            Detail = logAsError ? "An internal error occurred. Please try later." : exception.Message,
+            Instance = $"{httpContext.Request.Method} {httpContext.Request.Path}"
+        };
+
+        problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
+
+        httpContext.Response.StatusCode = statusCode;
 
         await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
-        
+
         return true;
     }
 }

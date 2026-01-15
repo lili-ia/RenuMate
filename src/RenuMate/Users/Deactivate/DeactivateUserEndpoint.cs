@@ -27,23 +27,26 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
+
+        var user = await db.Users
+            .Include(u => u.Subscriptions) 
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        if (user is null)
+        {
+            return Results.Problem(
+                statusCode: 404,
+                title: "User not found",
+                detail: "The authenticated user could not be found."
+            );
+        }
         
         try
         {
-            var rows = await db.Users
-                .Where(u => u.Id == userId)
-                .ExecuteUpdateAsync(setter => setter
-                    .SetProperty(u => u.IsActive, false), cancellationToken);
-            
-            if (rows == 0)
-            {
-                return Results.Problem(
-                    statusCode: 404,
-                    title: "User not found",
-                    detail: "The authenticated user could not be found in the database."
-                );
-            }
-         
+            await db.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation("User {UserId} deactivated their account.", userId);
+
             return Results.Ok(new MessageResponse
             (
                 Message: "Your account was successfully deactivated."
@@ -51,13 +54,8 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error while deactivating user {UserId}.", userId);
-            
-            return Results.Problem(
-                statusCode: 500,
-                title: "Internal server error",
-                detail: "An unexpected error occurred while deactivating your account."
-            );
+            logger.LogError(ex, "Failed to deactivate user {UserId}.", userId);
+            throw; 
         }
     }
 }

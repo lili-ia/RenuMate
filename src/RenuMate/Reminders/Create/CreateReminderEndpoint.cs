@@ -3,7 +3,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Common;
-using RenuMate.Entities;
 using RenuMate.Extensions;
 using RenuMate.Middleware;
 using RenuMate.Persistence;
@@ -45,8 +44,8 @@ public abstract class CreateReminderEndpoint : IEndpoint
         }
 
         var subscription = await db.Subscriptions
-            .AsNoTracking()
             .Where(s => s.Id == request.SubscriptionId && s.UserId == userId)
+            .Include(s => s.Reminders)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (subscription is null)
@@ -58,101 +57,29 @@ public abstract class CreateReminderEndpoint : IEndpoint
             );
         }
         
-        TimeZoneInfo userTz;
         try
         {
-            userTz = TimeZoneInfo.FindSystemTimeZoneById(request.Timezone);
+            var utcTime = request.GetUtcNotifyTime();
+
+            subscription.AddReminderRule(utcTime, request.DaysBeforeRenewal);
+            await db.SaveChangesAsync(cancellationToken);
+
+            var newRule = subscription.Reminders.Last();
+
+            return Results.Ok(new CreateReminderResponse
+            (
+                newRule.Id,
+                newRule.SubscriptionId,
+                newRule.DaysBeforeRenewal,
+                newRule.NotifyTimeUtc
+            ));
         }
-        catch (Exception)
+        catch (TimeZoneNotFoundException)
         {
             return Results.Problem(
                 statusCode: 400,
                 title: "Invalid timezone",
                 detail: $"The timezone '{request.Timezone}' is not valid."
-            );
-        }
-        
-        var today = DateTime.Today;
-
-        var localDateTime = new DateTime(
-            today.Year, today.Month, today.Day,
-            request.NotifyTime.Hours,
-            request.NotifyTime.Minutes,
-            request.NotifyTime.Seconds,
-            DateTimeKind.Unspecified);
-
-        var utcDateTime = TimeZoneInfo.ConvertTimeToUtc(localDateTime, userTz);
-        var utcTime = utcDateTime.TimeOfDay;
-        
-        var similarExists = await db.ReminderRules
-            .AnyAsync(r => r.SubscriptionId == request.SubscriptionId
-                           && r.DaysBeforeRenewal == request.DaysBeforeRenewal
-                           && r.NotifyTimeUtc == utcTime, cancellationToken);
-
-        if (similarExists)
-        {
-            return Results.Problem(
-                statusCode: 409,
-                title: "Reminder already exists",
-                detail: "A reminder with the same time and days-before-renewal already exists for this subscription."
-            );
-        }
-
-        var remindersCount = await db.ReminderRules
-            .Where(r => r.SubscriptionId == request.SubscriptionId)
-            .CountAsync(cancellationToken);
-
-        if (remindersCount >= 3)
-        {
-            return Results.Problem(
-                statusCode: 409,
-                title: "Maximum reminders reached",
-                detail: "You cannot create more than 3 reminders for a single subscription."
-            );
-        }
-        
-        var reminderRule = new ReminderRule
-        {
-            SubscriptionId = request.SubscriptionId,
-            DaysBeforeRenewal = request.DaysBeforeRenewal,
-            NotifyTimeUtc = utcTime
-        };
-        
-        var scheduledTime = reminderRule.CalculateNextOccurrence(
-            subscription.RenewalDate, 
-            subscription.Plan, 
-            subscription.CustomPeriodInDays);
-
-        var nextReminderOccurrence = new ReminderOccurrence
-        {
-            ReminderRuleId = reminderRule.Id,
-            ScheduledAt = scheduledTime,
-            IsSent = false
-        };
-        
-        try
-        {
-            await db.ReminderRules.AddAsync(reminderRule, cancellationToken);
-            await db.ReminderOccurrences.AddAsync(nextReminderOccurrence, cancellationToken);
-            await db.SaveChangesAsync(cancellationToken);
-            
-            return Results.Ok(new CreateReminderResponse
-            (
-                reminderRule.Id,
-                reminderRule.SubscriptionId,
-                reminderRule.DaysBeforeRenewal,
-                reminderRule.NotifyTimeUtc,
-                scheduledTime
-            ));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error while creating reminder for subscription {SubscriptionId}.", request.SubscriptionId);
-            
-            return Results.Problem(
-                statusCode: 500,
-                title: "Internal server error",
-                detail: "An unexpected error occurred while creating the reminder."
             );
         }
     }

@@ -43,26 +43,8 @@ public class SyncUserEndpoint : IEndpoint
 
         if (user is not null)
         {
-            var changed = false;
-            
-            if (user.Email != email || user.Name != name)
-            {
-                user.Email = email;
-                user.Name = name;
-                changed = true;
-            }
-
-            if (!user.IsMetadataSynced)
-            {
-                await auth0Service.UpdateUserInternalIdAsync(auth0Id, user.Id, ct);
-                user.IsMetadataSynced = true;
-                changed = true;
-            }
-
-            if (changed)
-            {
-                await db.SaveChangesAsync(ct);
-            }
+            user.UpdateProfile(email, name);
+            await EnsureMetadataSynced(user, auth0Service, db, ct);
             
             return TypedResults.Ok(new SyncUserResponse ("User synced", user.Id));
         }
@@ -71,49 +53,40 @@ public class SyncUserEndpoint : IEndpoint
 
         if (user is not null)
         {
-            if (!string.IsNullOrEmpty(user.Auth0Id))
-            {
-                return TypedResults.Problem(statusCode: 409, title: "Account Already Linked");
-            }
-            
-            user.Auth0Id = auth0Id;
-            user.EmailConfirmed = isVerified;
-            
-            await auth0Service.UpdateUserInternalIdAsync(auth0Id, user.Id, ct);
-            user.IsMetadataSynced = true;
-            
-            await db.SaveChangesAsync(ct);
+            user.LinkAuth0Account(auth0Id, isVerified);
+            await EnsureMetadataSynced(user, auth0Service, db, ct);
             
             return TypedResults.Ok(new SyncUserResponse ("Legacy user linked", user.Id));
         }
 
-        var newUser = new User
-        {
-            Id = Guid.NewGuid(),
-            Auth0Id = auth0Id,
-            Email = email,
-            Name = name,
-            EmailConfirmed = isVerified,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            IsMetadataSynced = false
-        };
+        var newUser = User.Create(auth0Id, email, name);
 
-        try
+        if (isVerified)
         {
-            db.Users.Add(newUser);
-            await db.SaveChangesAsync(ct); 
-
-            await auth0Service.UpdateUserInternalIdAsync(auth0Id, newUser.Id, ct);
-            
-            newUser.IsMetadataSynced = true;
+            newUser.ConfirmEmail();
+        }
+        
+        db.Users.Add(newUser);
+        await EnsureMetadataSynced(newUser, auth0Service, db, ct);
+        
+        return TypedResults.Ok(new SyncUserResponse ("User created", newUser.Id));
+    }
+    
+    private static async Task EnsureMetadataSynced(
+        User user, 
+        IAuth0Service auth0Service, 
+        RenuMateDbContext db, 
+        CancellationToken ct)
+    {
+        if (user.IsMetadataSynced) 
+        {
             await db.SaveChangesAsync(ct);
-            
-            return TypedResults.Ok(new SyncUserResponse ("User created", newUser.Id));
+            return;
         }
-        catch (DbUpdateException)
-        {
-            return TypedResults.Problem(statusCode: 409, title: "User Already Exists");
-        }
+
+        await auth0Service.UpdateUserInternalIdAsync(user.Auth0Id, user.Id, ct);
+        user.MarkMetadataAsSynced();
+    
+        await db.SaveChangesAsync(ct);
     }
 }

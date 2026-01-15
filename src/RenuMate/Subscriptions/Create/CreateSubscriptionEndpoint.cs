@@ -20,7 +20,8 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
         .RequireAuthorization("VerifiedEmailOnly")
         .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Create a subscription.")
-        .WithDescription("Creates a new subscription for the authenticated user, calculating the renewal date based on the plan and optional custom period.")
+        .WithDescription("Creates a new subscription for the authenticated user, calculating the renewal date based " +
+                         "on the plan and optional custom period.")
         .WithTags("Subscriptions")
         .Produces<CreateSubscriptionResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
         .Produces(StatusCodes.Status400BadRequest)
@@ -46,34 +47,28 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
 
         Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var plan);
         Enum.TryParse<Currency>(request.Currency, true, out var currency);
-
-        var subscription = new Subscription
-        {
-            Id = Guid.NewGuid(),
-            CreatedAt = DateTime.UtcNow,
-            Name = request.Name,
-            Plan = plan,
-            CustomPeriodInDays = request.CustomPeriodInDays,
-            TrialPeriodInDays = request.TrialPeriodInDays,
-            StartDate = request.StartDate,
-            Cost = request.Cost,
-            Currency = currency,
-            IsMuted = false,
-            Note = request.Note,
-            CancelLink = request.CancelLink,
-            PicLink = request.PicLink,
-            UserId = userId
-        };
-          
+        
         try
         {
-            subscription.UpdateNextRenewalDate(isInitialization: true);
+            var subscription = plan switch
+            {
+                SubscriptionPlan.Trial => Subscription.CreateTrial(
+                    request.Name, request.TrialPeriodInDays ?? 7, userId, request.Cost, currency, 
+                    cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note),
+                
+                SubscriptionPlan.Custom => Subscription.CreateCustom(
+                    request.Name, request.CustomPeriodInDays ?? 30, request.Cost, currency, request.StartDate, userId,
+                    cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note),
 
-            await db.Subscriptions.AddAsync(subscription, cancellationToken);
+                _ => Subscription.CreateStandard(
+                    request.Name, plan, request.Cost, currency, request.StartDate, userId,
+                    cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note)
+            };
+
+            db.Subscriptions.Add(subscription); 
             await db.SaveChangesAsync(cancellationToken);
 
-            return Results.Ok(new CreateSubscriptionResponse
-            (
+            return Results.Ok(new CreateSubscriptionResponse(
                 subscription.Id,
                 subscription.Name,
                 subscription.RenewalDate,
@@ -87,34 +82,8 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status403Forbidden,
-                title: "Subscription with this name already exists.",
-                detail: "You can not create more than one subscription with similar names."
-            );
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Invalid request",
-                detail: ex.Message
-            );
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Invalid request",
-                detail: ex.Message
-            );
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error while creating subscription for user {UserId}.", userId);
-            
-            return Results.Problem(
-                statusCode: StatusCodes.Status500InternalServerError,
-                title: "Internal server error",
-                detail: "An unexpected error occurred while creating the subscription."
+                title: "Subscription already exists.",
+                detail: "You cannot create more than one subscription with the same name."
             );
         }
     }

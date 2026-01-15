@@ -30,33 +30,19 @@ public abstract class DeleteReminderEndpoint : IEndpoint
     {
         var userId = userContext.UserId;
         
-        try
+        var rows = await db.ReminderRules
+            .Where(r => r.Id == id 
+                        && r.Subscription.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        if (rows == 0)
         {
-            var rows = await db.ReminderRules
-                .Where(r => r.Id == id 
-                            && r.Subscription.UserId == userId)
-                .ExecuteDeleteAsync(cancellationToken);
-
-            if (rows == 0)
-            {
-                return Results.Problem(
-                    statusCode: 404,
-                    title: "Reminder not found",
-                    detail: "No reminder exists with the specified ID for this subscription."
-                );
-            }
-
-            return Results.NoContent();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error while deleting reminder {ReminderId}.", id);
-
             return Results.Problem(
-                statusCode: 500,
-                title: "Internal server error",
-                detail: "An unexpected error occurred while deleting the reminder."
-            );
+                statusCode: 404,
+                title: "Reminder not found",
+                detail: "No reminder exists with the specified ID for this subscription.");
         }
+
+        return Results.NoContent();
     }
 }

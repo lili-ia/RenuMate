@@ -25,7 +25,6 @@ namespace RenuMate.Migrations
             modelBuilder.Entity("RenuMate.Entities.ReminderOccurrence", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -57,7 +56,6 @@ namespace RenuMate.Migrations
             modelBuilder.Entity("RenuMate.Entities.ReminderRule", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -86,7 +84,6 @@ namespace RenuMate.Migrations
             modelBuilder.Entity("RenuMate.Entities.Subscription", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("CancelLink")
@@ -158,7 +155,6 @@ namespace RenuMate.Migrations
             modelBuilder.Entity("RenuMate.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("Auth0Id")

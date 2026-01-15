@@ -30,32 +30,19 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
     {
         var userId = userContext.UserId;
         
-        try
-        {
-            var rows = await db.Subscriptions
-                .Where(s => s.Id == id && s.UserId == userId)
-                .ExecuteDeleteAsync(cancellationToken);
+        var rows = await db.Subscriptions
+            .Where(s => s.Id == id && s.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
 
-            if (rows == 0)
-            {
-                return Results.Problem(
-                    statusCode: 404,
-                    title: "Subscription not found",
-                    detail: "No subscription exists with the specified ID for the current user."
-                );
-            }
-
-            return Results.NoContent();
-        }
-        catch (Exception ex)
+        if (rows == 0)
         {
-            logger.LogError(ex, "Error while deleting subscription {SubscriptionId}.", id);
-            
             return Results.Problem(
-                statusCode: 500,
-                title: "Internal server error",
-                detail: "An unexpected error occurred while deleting the subscription."
+                statusCode: 404,
+                title: "Subscription not found",
+                detail: "No subscription exists with the specified ID for the current user."
             );
         }
+
+        return Results.NoContent();
     }
 }

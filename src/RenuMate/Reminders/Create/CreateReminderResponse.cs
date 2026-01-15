@@ -5,6 +5,5 @@ public sealed record CreateReminderResponse
     Guid Id,
     Guid SubscriptionId,
     int DaysBeforeRenewal,
-    TimeSpan NotifyTime,
-    DateTime NextReminder 
+    TimeSpan NotifyTime
 );

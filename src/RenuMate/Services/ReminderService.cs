@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using RenuMate.Entities;
 using RenuMate.Persistence;
 using RenuMate.Services.Contracts;
 
@@ -20,60 +19,62 @@ public class ReminderService(
             .Include(o => o.ReminderRule)
                 .ThenInclude(r => r.Subscription)
                 .ThenInclude(s => s.User)
-            .Where(o => !o.ReminderRule.Subscription.IsMuted && !o.IsSent && o.ScheduledAt <= now)
+            .Where(o => !o.ReminderRule.Subscription.IsMuted 
+                        && !o.IsSent && o.ScheduledAt <= now 
+                        && o.ReminderRuleId.HasValue)
             .ToListAsync(ct);
-        
-        foreach (var o in occurrences)
+
+        if (occurrences.Count == 0)
         {
-            var subscription = o.ReminderRule.Subscription;
-            var email = subscription.User.Email;
+            return;
+        }
+        
+        foreach (var occurrence in occurrences)
+        {
+            var rule = occurrence.ReminderRule;
+            var sub = rule.Subscription;
 
-            var period = subscription.CustomPeriodInDays.HasValue
-                ? $"{subscription.CustomPeriodInDays.Value} days"
-                : subscription.Plan.ToString();
-
-            var note = string.IsNullOrWhiteSpace(subscription.Note)
-                ? "No additional notes"
-                : subscription.Note;
-
-            var subject = $"Reminder: Your subscription \"{subscription.Name}\" is active";
-
-            var body = emailTemplateService.BuildSubscriptionReminderEmail(
-                userName: subscription.User.Name,
-                subscriptionName: subscription.Name,
-                plan: subscription.Plan.ToString(),
-                startDate: subscription.StartDate,
-                renewalDate: subscription.RenewalDate,
-                cost: subscription.Cost,
-                currency: subscription.Currency.ToString(),
-                period: period,
-                note: note);
-                
-            var sent = await emailService.SendEmailAsync(email, subject, body, ct);
-
-            if (sent)
+            try
             {
-                o.IsSent = true;
-                o.SentAt = now;
+                var period = sub.CustomPeriodInDays.HasValue
+                    ? $"{sub.CustomPeriodInDays.Value} days"
+                    : sub.Plan.ToString();
+
+                var note = string.IsNullOrWhiteSpace(sub.Note)
+                    ? "No additional notes"
+                    : sub.Note;
+
+                var subject = $"Reminder: Your subscription \"{sub.Name}\" is active";
+
+                var body = emailTemplateService.BuildSubscriptionReminderEmail(
+                    userName: sub.User.Name,
+                    subscriptionName: sub.Name,
+                    plan: sub.Plan.ToString(),
+                    startDate: sub.StartDate,
+                    renewalDate: sub.RenewalDate,
+                    cost: sub.Cost,
+                    currency: sub.Currency.ToString(),
+                    period: period,
+                    note: note);
+
+                var sent = await emailService.SendEmailAsync(sub.User.Email, subject, body, ct);
+
+                if (sent)
+                {
+                    occurrence.MarkAsSent();
+
+                    var nextOccurrence = rule.CreateOccurrence(sub.RenewalDate);
+
+                    if (nextOccurrence is not null)
+                    {
+                        rule.AddOccurrence(nextOccurrence);
+                    }
+                }
             }
-            
-            var nextReminderAt = subscription.RenewalDate
-                .AddDays(-o.ReminderRule.DaysBeforeRenewal)
-                .Add(o.ReminderRule.NotifyTimeUtc);
-
-            if (nextReminderAt <= now)
+            catch (Exception ex)
             {
-                continue;
+                logger.LogError(ex, "Failed to process reminder {Id}", occurrence.Id);
             }
-            
-            var nextReminder = new ReminderOccurrence
-            {
-                ReminderRuleId = o.ReminderRule.Id,
-                ScheduledAt = nextReminderAt,
-                IsSent = false
-            };
-
-            db.ReminderOccurrences.Add(nextReminder);
         }
         
         await db.SaveChangesAsync(ct);

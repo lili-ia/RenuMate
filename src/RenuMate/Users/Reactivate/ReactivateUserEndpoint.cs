@@ -70,43 +70,21 @@ public abstract class ReactivateUserEndpoint : IEndpoint
                 detail: "The reactivation token is invalid or has expired."
             );
         }
-
-        if (user.IsActive)
-        {
-            return Results.Problem(
-                statusCode: 409,
-                title: "Conflict",
-                detail: "Your account is already active."
-            );
-        }
         
-        user.IsActive = true;
+        user.Activate();
         
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
 
-            var accessToken = tokenService.CreateToken(
-                userId: userId.ToString(), 
-                email: user.Email, 
-                purpose: "Reactivate",
-                emailConfirmed: "true",
-                expiresAt: DateTime.UtcNow.AddHours(24));
-            
-            return Results.Ok(new TokenResponse
-            (
-                Token: accessToken
-            ));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error while reactivating user with {UserId}", user.Id);
-            
-            return Results.Problem(
-                statusCode: 500,
-                title: "Internal Server Error",
-                detail: "An internal error occurred while reactivating the account."
-            );
-        }
+        var accessToken = tokenService.CreateToken(
+            userId: userId.ToString(), 
+            email: user.Email, 
+            purpose: "Reactivate",
+            emailConfirmed: "true",
+            expiresAt: DateTime.UtcNow.AddHours(24));
+        
+        return TypedResults.Ok(new TokenResponse
+        (
+            Token: accessToken
+        ));
     }
 }
