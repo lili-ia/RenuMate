@@ -1,0 +1,65 @@
+using RenuMate.Api.Exceptions;
+
+namespace RenuMate.Api.Entities;
+
+public class ReminderRule : BaseEntity
+{
+    public Guid SubscriptionId { get; private set; }
+    
+    public Subscription Subscription { get; private set; } = null!;
+
+    public TimeSpan NotifyTimeUtc { get; private set; }
+    
+    public int DaysBeforeRenewal { get; private set; }
+
+    public IReadOnlyCollection<ReminderOccurrence> ReminderOccurrences => _occurrences.AsReadOnly();
+    
+    public static ReminderRule Create(Guid subscriptionId, TimeSpan notifyTimeUtc, int daysBeforeRenewal)
+    {
+        if (daysBeforeRenewal < 0)
+        {
+            throw new DomainValidationException("Days before renewal cannot be negative.");
+        }
+        
+        return new ReminderRule
+        {
+            SubscriptionId = subscriptionId,
+            NotifyTimeUtc = notifyTimeUtc,
+            DaysBeforeRenewal = daysBeforeRenewal
+        };
+    }
+    
+    public ReminderOccurrence? CreateOccurrence(DateTime subscriptionRenewalDate)
+    {
+        var scheduledAt = subscriptionRenewalDate.Date
+            .AddDays(-DaysBeforeRenewal)
+            .Add(NotifyTimeUtc);
+
+        if (scheduledAt <= DateTime.UtcNow)
+        {
+            return null;
+        }
+
+        return ReminderOccurrence.Create(Id, scheduledAt);
+    }
+    
+    public void AddOccurrence(ReminderOccurrence occurrence)
+    {
+        if (occurrence is null)
+        {
+            throw new ArgumentNullException(nameof(occurrence));
+        }
+        
+        if (_occurrences.Any(o => o.ScheduledAt == occurrence.ScheduledAt))
+        {
+            throw new DomainConflictException(
+                $"A reminder occurrence for this rule is already scheduled at {occurrence.ScheduledAt}.");
+        }
+
+        _occurrences.Add(occurrence);
+    }
+    
+    private ReminderRule() { }
+    
+    private readonly List<ReminderOccurrence> _occurrences = [];
+}

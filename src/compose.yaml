@@ -3,7 +3,7 @@
     image: renumate-backend:latest
     build:
       context: .
-      dockerfile: RenuMate/Dockerfile
+      dockerfile: RenuMate.Api/Dockerfile
     depends_on:
       - db
     ports:
