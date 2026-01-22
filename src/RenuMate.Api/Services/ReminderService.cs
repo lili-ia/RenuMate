@@ -8,12 +8,13 @@ public class ReminderService(
     RenuMateDbContext db,
     IEmailSender emailService,
     ILogger<ReminderService> logger,
-    IEmailTemplateService emailTemplateService)
+    IEmailTemplateService emailTemplateService,
+    TimeProvider timeProvider)
     : IReminderService
 {
     public async Task ProcessDueRemindersAsync(CancellationToken ct)
     {
-        var now = DateTime.UtcNow;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
 
         var occurrences = await db.ReminderOccurrences
             .Include(o => o.ReminderRule)
@@ -63,7 +64,7 @@ public class ReminderService(
                 {
                     occurrence.MarkAsSent();
 
-                    var nextOccurrence = rule.CreateOccurrence(sub.RenewalDate);
+                    var nextOccurrence = rule.CreateOccurrence(sub.RenewalDate, now);
 
                     if (nextOccurrence is not null)
                     {

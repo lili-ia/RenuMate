@@ -1,5 +1,6 @@
 using System.Net.Mime;
 using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -33,8 +34,7 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
         [FromBody] UpdateSubscriptionRequest request,
         IUserContext userContext,
         IValidator<UpdateSubscriptionRequest> validator,
-        RenuMateDbContext db,
-        ILogger<UpdateSubscriptionEndpoint> logger,
+        IMediator mediator,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
@@ -46,60 +46,26 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
             return validation.ToFailureResult();
         }
 
-        var subscription = await db.Subscriptions.FindAsync([id], cancellationToken);
-
-        if (subscription is null)
-        {
-            return Results.Problem(
-                statusCode: 403,
-                title: "Forbidden",
-                detail: "You do not have permission to update this subscription."
-            );
-        }
-
-        if (subscription.UserId != userId)
-        {
-            return Results.Forbid();
-        }
-        
         Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var newPlan);
         Enum.TryParse<Currency>(request.Currency, true, out var newCurrency);
+        
+        var command = new UpdateSubscriptionCommand(
+            UserId: userId,
+            SubscriptionId: id,
+            Name: request.Name,
+            Plan: newPlan,
+            CustomPeriodInDays: request.CustomPeriodInDays,
+            TrialPeriodInDays: request.TrialPeriodInDays,
+            StartDate: request.StartDate,
+            Cost: request.Cost,
+            Currency: newCurrency,
+            Note: request.Note,
+            CancelLink: request.CancelLink,
+            PicLink: request.PicLink
+        );
 
-        try
-        {
-            subscription.UpdateDetails(request.Name, request.Note, request.CancelLink, request.PicLink);
-            subscription.ChangePricing(request.Cost, newCurrency);
-
-            if (subscription.StartDate != request.StartDate)
-            {
-                subscription.RescheduleStartDate(request.StartDate);
-            }
-
-            if (subscription.Plan != newPlan)
-            {
-                subscription.ChangePlan(newPlan, request.CustomPeriodInDays);
-            }
-
-            await db.SaveChangesAsync(cancellationToken);
-            
-            return Results.Ok(new UpdateSubscriptionResponse
-            (
-                subscription.Id,
-                subscription.Name,
-                subscription.RenewalDate,
-                $"{subscription.Cost}{subscription.Currency}",
-                subscription.Note,
-                subscription.CancelLink,
-                subscription.PicLink
-            ));
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is NpgsqlException { SqlState: "23505" })  
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Subscription with this name already exists.",
-                detail: "You can not create more than one subscription with similar names."
-            );
-        }
+        var result = await mediator.Send(command, cancellationToken);
+        
+        return result;
     }
 }

@@ -16,7 +16,7 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
         .WithSummary("Get user subscriptions.")
         .WithDescription("Returns a paginated list of subscriptions belonging to the authenticated user.")
         .WithTags("Subscriptions")
-        .Produces<PaginatedResponse<SubscriptionDetailsDto>>(200, MediaTypeNames.Application.Json)
+        .Produces<PaginatedResponse<SubscriptionDetailsDto>>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
         .Produces(StatusCodes.Status401Unauthorized);
     
     private static async Task<IResult> Handle(

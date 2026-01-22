@@ -1,13 +1,10 @@
 using System.Net.Mime;
 using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using RenuMate.Api.Common;
-using RenuMate.Api.Entities;
 using RenuMate.Api.Enums;
 using RenuMate.Api.Middleware;
-using RenuMate.Api.Persistence;
 using RenuMate.Api.Services.Contracts;
 using RenuMate.Api.Extensions;
 
@@ -32,8 +29,7 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
         [FromBody] CreateSubscriptionRequest request,
         IUserContext userContext,
         IValidator<CreateSubscriptionRequest> validator,
-        RenuMateDbContext db,
-        ILogger<CreateSubscriptionEndpoint> logger,
+        IMediator mediator,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
@@ -45,46 +41,25 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
             return validation.ToFailureResult();
         }
 
-        Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var plan);
+        Enum.TryParse<SubscriptionPlan>(request.Plan, true, out var plan); // both enums are already validated in corresponding validators
         Enum.TryParse<Currency>(request.Currency, true, out var currency);
-        
-        try
-        {
-            var subscription = plan switch
-            {
-                SubscriptionPlan.Trial => Subscription.CreateTrial(
-                    request.Name, request.TrialPeriodInDays ?? 7, userId, request.Cost, currency, 
-                    cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note),
-                
-                SubscriptionPlan.Custom => Subscription.CreateCustom(
-                    request.Name, request.CustomPeriodInDays ?? 30, request.Cost, currency, request.StartDate, userId,
-                    cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note),
 
-                _ => Subscription.CreateStandard(
-                    request.Name, plan, request.Cost, currency, request.StartDate, userId,
-                    cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note)
-            };
+        var command = new CreateSubscriptionCommand(
+            UserId: userId,
+            Name: request.Name,
+            Plan: plan,
+            CustomPeriodInDays: request.CustomPeriodInDays,
+            TrialPeriodInDays: request.TrialPeriodInDays,
+            StartDate: request.StartDate,
+            Cost: request.Cost,
+            Currency: currency,
+            Note: request.Note,
+            CancelLink: request.CancelLink,
+            PicLink: request.PicLink
+        );
 
-            db.Subscriptions.Add(subscription); 
-            await db.SaveChangesAsync(cancellationToken);
+        var result = await mediator.Send(command, cancellationToken);
 
-            return Results.Ok(new CreateSubscriptionResponse(
-                subscription.Id,
-                subscription.Name,
-                subscription.RenewalDate,
-                $"{subscription.Cost}{subscription.Currency}",
-                subscription.Note,
-                subscription.CancelLink,
-                subscription.PicLink
-            ));
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is NpgsqlException { SqlState: "23505" })  
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Subscription already exists.",
-                detail: "You cannot create more than one subscription with the same name."
-            );
-        }
+        return result;
     }
 }

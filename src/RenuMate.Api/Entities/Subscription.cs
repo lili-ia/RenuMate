@@ -39,20 +39,31 @@ public class Subscription : BaseEntity
     public static Subscription CreateTrial(
         string name, 
         int trialDays, 
+        DateTime startDate,
         Guid userId,
         decimal postTrialCost,
         Currency currency,
-        string? cancelLink,
-        string? picLink, 
-        string? note)
+        DateTime now,
+        string? cancelLink = null,
+        string? picLink = null, 
+        string? note = null)
     {
         if (trialDays <= 0)
         {
             throw new DomainValidationException("Trial period must be positive.");
         }
+        
+        var trialEnd = startDate.AddDays(trialDays);
+
+        if (trialEnd <= now)
+        {
+            throw new DomainValidationException("Cannot create a trial that has already ended.");
+        }
+        
+        var initialRenewalDate = CalculateInitialRenewal(SubscriptionPlan.Trial, startDate, now, trialDays, null);
 
         return new Subscription(
-            name, SubscriptionPlan.Trial, DateTime.UtcNow, 
+            name, SubscriptionPlan.Trial, startDate, initialRenewalDate,
             postTrialCost, currency, userId, trialDays: trialDays,
             note: note, cancelLink: cancelLink, picLink: picLink);
     }
@@ -64,16 +75,20 @@ public class Subscription : BaseEntity
         Currency currency, 
         DateTime startDate,
         Guid userId,
-        string? cancelLink,
-        string? picLink, 
-        string? note)
+        DateTime now,
+        string? cancelLink = null,
+        string? picLink = null, 
+        string? note = null)
     {
         if (plan is SubscriptionPlan.Custom or SubscriptionPlan.Trial)
         {
             throw new DomainValidationException("Use specific factory methods for Custom or Trial plans.");
         }
+        
+        var renewalDate = CalculateInitialRenewal(
+            plan, startDate, now, null, null);
 
-        return new Subscription(name, plan, startDate, cost, currency, userId, 
+        return new Subscription(name, plan, startDate, renewalDate, cost, currency, userId, 
             note: note, cancelLink: cancelLink, picLink: picLink);
     }
 
@@ -84,17 +99,21 @@ public class Subscription : BaseEntity
         Currency currency, 
         DateTime startDate,
         Guid userId,
-        string? cancelLink,
-        string? picLink, 
-        string? note)
+        DateTime now,
+        string? cancelLink = null,
+        string? picLink = null, 
+        string? note = null)
     {
         if (customPeriodInDays <= 0)
         {
             throw new DomainValidationException("Custom period must be positive.");
         }
+        
+        var renewalDate = CalculateInitialRenewal(
+            SubscriptionPlan.Custom, startDate, now, null, customPeriodInDays);
 
         return new Subscription(
-            name, SubscriptionPlan.Custom, startDate, 
+            name, SubscriptionPlan.Custom, startDate, renewalDate,
             cost, currency, userId, customDays: customPeriodInDays,
             note: note, cancelLink: cancelLink, picLink: picLink);
     }
@@ -104,41 +123,56 @@ public class Subscription : BaseEntity
         IsMuted = status;
     }
 
-    public void UpdateNextRenewalDate(bool isInitialization = false)
+    public void UpdateNextRenewalDate(DateTime now)
     {
-        var today = DateTime.UtcNow.Date;
         var next = RenewalDate != default ? RenewalDate : StartDate;
 
-        if (isInitialization)
+        while (next <= now)
         {
             if (Plan == SubscriptionPlan.Trial)
             {
-                RenewalDate = StartDate.AddDays(TrialPeriodInDays ?? 7);
-            }
-            else
-            {
-                while (next <= today) next = AddPeriod(next);
-                RenewalDate = next;
-            }
-            return;
-        }
-
-        while (next <= today)
-        {
-            if (Plan == SubscriptionPlan.Trial)
-            {
-                next = next.AddDays(TrialPeriodInDays ?? 7);
                 Plan = SubscriptionPlan.Monthly; 
+                next = AddPeriod(Plan, next);
             }
             else
             {
-                next = AddPeriod(next);
+                next = AddPeriod(Plan, next, CustomPeriodInDays);
             }
         }
 
         if (RenewalDate != next)
         {
             RenewalDate = next;
+            AddDomainEvent(new SubscriptionRenewalDateOrPlanUpdatedEvent(Id, RenewalDate));
+        }
+    }
+    
+    public void UpdatePlanAndStartDate(
+        SubscriptionPlan newPlan,
+        DateTime newStartDate,
+        DateTime now,
+        int? customDays = null,
+        int? trialDays = null)
+    {
+        var changed = false;
+
+        if (StartDate != newStartDate)
+        {
+            StartDate = newStartDate;
+            changed = true;
+        }
+
+        if (Plan != newPlan || CustomPeriodInDays != customDays || TrialPeriodInDays != trialDays)
+        {
+            Plan = newPlan;
+            CustomPeriodInDays = customDays;
+            TrialPeriodInDays = trialDays;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            RenewalDate = CalculateInitialRenewal(Plan, StartDate, now, TrialPeriodInDays, CustomPeriodInDays);
             AddDomainEvent(new SubscriptionRenewalDateOrPlanUpdatedEvent(Id, RenewalDate));
         }
     }
@@ -163,27 +197,8 @@ public class Subscription : BaseEntity
         Cost = newCost;
         Currency = newCurrency;
     }
-
-    public void ChangePlan(SubscriptionPlan newPlan, int? customDays = null)
-    {
-        Plan = newPlan;
-        CustomPeriodInDays = customDays;
-        
-        UpdateNextRenewalDate(); 
-    }
     
-    public void RescheduleStartDate(DateTime newDate)
-    {
-        if (StartDate <= DateTime.UtcNow)
-        {
-            throw new DomainValidationException("Cannot change start date for an active or past subscription.");
-        }
-        
-        StartDate = newDate;
-        UpdateNextRenewalDate(); 
-    }
-    
-    public void AddReminderRule(TimeSpan notifyTimeUtc, int daysBeforeRenewal)
+    public void AddReminderRule(TimeSpan notifyTimeUtc, int daysBeforeRenewal, DateTime now)
     {
         if (_reminders.Count >= 3)
         {
@@ -206,7 +221,7 @@ public class Subscription : BaseEntity
         var rule = ReminderRule.Create(Id, notifyTimeUtc, daysBeforeRenewal);
         _reminders.Add(rule);
 
-        var occurrence = rule.CreateOccurrence(RenewalDate);
+        var occurrence = rule.CreateOccurrence(RenewalDate, now);
         
         if (occurrence is not null)
         {
@@ -226,22 +241,47 @@ public class Subscription : BaseEntity
             _ => 0
         };
     }
-
-    private DateTime AddPeriod(DateTime current) => Plan switch
+    
+    private static DateTime AddPeriod(SubscriptionPlan plan, DateTime current, int? customDays = null) => plan switch
     {
         SubscriptionPlan.Monthly => current.AddMonths(1),
         SubscriptionPlan.Quarterly => current.AddMonths(3),
         SubscriptionPlan.Annual => current.AddYears(1),
-        SubscriptionPlan.Custom => current.AddDays(CustomPeriodInDays ?? 30),
+        SubscriptionPlan.Custom => current.AddDays(customDays ?? 30),
         _ => current.AddMonths(1)
     };
     
+    private static DateTime CalculateInitialRenewal(
+        SubscriptionPlan plan, 
+        DateTime startDate, 
+        DateTime now, 
+        int? trialDays, 
+        int? customDays) 
+    {
+        var next = startDate;
+
+        if (plan == SubscriptionPlan.Trial)
+        {
+            next = startDate.AddDays(trialDays ?? 7);
+        }
+        else
+        {
+            while (next <= now) 
+            {
+                next = AddPeriod(plan, next, customDays);
+            }
+        }
+
+        return next;
+    }
+    
     private Subscription() { }
     
-    private Subscription(
+    private  Subscription(
         string name, 
         SubscriptionPlan plan, 
         DateTime startDate, 
+        DateTime renewalDate,
         decimal cost, 
         Currency currency, 
         Guid userId,
@@ -269,6 +309,7 @@ public class Subscription : BaseEntity
         Name = name;
         Plan = plan;
         StartDate = startDate;
+        RenewalDate = renewalDate;
         Cost = cost;
         Currency = currency;
         UserId = userId;
@@ -278,8 +319,6 @@ public class Subscription : BaseEntity
         CancelLink = cancelLink;
         PicLink = picLink;
         IsMuted = false;
-
-        UpdateNextRenewalDate(isInitialization: true);
     }
     
     private readonly List<ReminderRule> _reminders = [];

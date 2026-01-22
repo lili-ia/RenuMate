@@ -32,6 +32,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
         IValidator<CreateReminderRequest> validator,
         IUserContext userContext,
         ILogger<CreateReminderEndpoint> logger,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
@@ -59,9 +60,10 @@ public abstract class CreateReminderEndpoint : IEndpoint
         
         try
         {
-            var utcTime = request.GetUtcNotifyTime();
+            var notifyTime = request.GetUtcNotifyTime();
+            var now = timeProvider.GetUtcNow().UtcDateTime;
 
-            subscription.AddReminderRule(utcTime, request.DaysBeforeRenewal);
+            subscription.AddReminderRule(notifyTime, request.DaysBeforeRenewal, now);
             await db.SaveChangesAsync(cancellationToken);
 
             var newRule = subscription.Reminders.Last();

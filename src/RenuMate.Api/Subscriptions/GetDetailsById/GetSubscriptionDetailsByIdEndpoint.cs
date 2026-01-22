@@ -18,6 +18,7 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
         .WithTags("Subscriptions")
         .Produces<SubscriptionDetailsDto>(200, MediaTypeNames.Application.Json)
         .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
     
     private static async Task<IResult> Handle(

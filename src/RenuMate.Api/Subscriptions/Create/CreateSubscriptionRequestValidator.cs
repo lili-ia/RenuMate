@@ -15,9 +15,6 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
             .NotEmpty().WithMessage("Subscription plan is required.")
             .Must(type => Enum.TryParse<SubscriptionPlan>(type, true, out _))
             .WithMessage("Invalid subscription plan.");
-
-        RuleFor(x => x.CustomPeriodInDays)
-            .GreaterThan(0);
         
         When(x => x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase), () => 
         {
@@ -36,12 +33,6 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
                 .Must(x => x.StartDate.AddDays(x.TrialPeriodInDays ?? 0) > DateTime.UtcNow.Date)
                 .WithMessage("You cannot add a trial that has already expired.")
                 .WithName("TrialPeriodInDays");
-        });
-
-        When(x => !x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase), () => 
-        {
-            RuleFor(x => x.CustomPeriodInDays)
-                .Null().WithMessage("Custom period should only be set for custom subscriptions.");
         });
 
         RuleFor(x => x.StartDate)

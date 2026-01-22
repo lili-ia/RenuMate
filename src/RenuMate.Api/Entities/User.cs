@@ -88,18 +88,6 @@ public class User : BaseEntity
         return true;
     }
 
-    public void LinkAuth0Account(string auth0Id, bool emailConfirmed)
-    {
-        if (!string.IsNullOrEmpty(Auth0Id) && Auth0Id != auth0Id)
-        {
-            throw new DomainConflictException("This account is already linked to another identity provider.");
-        }
-
-        Auth0Id = auth0Id;
-        EmailConfirmed = emailConfirmed;
-        IsMetadataSynced = false;
-    }
-
     public void MarkMetadataAsSynced()
     {
         IsMetadataSynced = true;

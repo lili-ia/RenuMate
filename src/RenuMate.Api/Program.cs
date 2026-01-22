@@ -25,6 +25,7 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 var connectionString = configuration.GetConnectionString("DefaultConnection");
 
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddMemoryCache();
 
 builder.Services.AddScoped<IManagementApiClient>(_ => 

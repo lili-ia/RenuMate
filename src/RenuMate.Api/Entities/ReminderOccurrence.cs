@@ -14,11 +14,11 @@ public class ReminderOccurrence : BaseEntity
     
     public DateTime? SentAt { get; private set; }
 
-    public static ReminderOccurrence Create(Guid reminderRuleId, DateTime scheduledAt)
+    public static ReminderOccurrence Create(Guid reminderRuleId, DateTime scheduledAt, DateTime now)
     {
-        if (scheduledAt <= DateTime.UtcNow)
+        if (scheduledAt <= now)
         {
-            throw new DomainValidationException("Cannot schedule a reminder in the past.");
+            throw new DomainConflictException("Cannot schedule a reminder in the past.");
         }
         
         return new ReminderOccurrence(reminderRuleId, scheduledAt);

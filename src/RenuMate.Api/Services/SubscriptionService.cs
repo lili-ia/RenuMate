@@ -4,11 +4,12 @@ using RenuMate.Api.Services.Contracts;
 
 namespace RenuMate.Api.Services;
 
-public class SubscriptionService(RenuMateDbContext db, ILogger<SubscriptionService> logger) : ISubscriptionService
+public class SubscriptionService(RenuMateDbContext db, ILogger<SubscriptionService> logger, TimeProvider timeProvider) 
+    : ISubscriptionService
 {
     public async Task ProcessSubscriptionRenewalAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow.Date;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
 
         var subscriptions = await db.Subscriptions
             .Where(s => s.RenewalDate.Date <= now)
@@ -16,7 +17,7 @@ public class SubscriptionService(RenuMateDbContext db, ILogger<SubscriptionServi
 
         foreach (var s in subscriptions)
         {
-            s.UpdateNextRenewalDate();
+            s.UpdateNextRenewalDate(now);
         }
 
         await db.SaveChangesAsync(cancellationToken);

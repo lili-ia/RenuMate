@@ -29,18 +29,18 @@ public class ReminderRule : BaseEntity
         };
     }
     
-    public ReminderOccurrence? CreateOccurrence(DateTime subscriptionRenewalDate)
+    public ReminderOccurrence? CreateOccurrence(DateTime subscriptionRenewalDate, DateTime now)
     {
         var scheduledAt = subscriptionRenewalDate.Date
             .AddDays(-DaysBeforeRenewal)
             .Add(NotifyTimeUtc);
 
-        if (scheduledAt <= DateTime.UtcNow)
+        if (scheduledAt <= now)
         {
             return null;
         }
 
-        return ReminderOccurrence.Create(Id, scheduledAt);
+        return ReminderOccurrence.Create(Id, scheduledAt, now);
     }
     
     public void AddOccurrence(ReminderOccurrence occurrence)

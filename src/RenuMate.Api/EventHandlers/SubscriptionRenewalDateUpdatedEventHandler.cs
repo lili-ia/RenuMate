@@ -6,7 +6,10 @@ using RenuMate.Api.Persistence;
 
 namespace RenuMate.Api.EventHandlers;
 
-public class SubscriptionRenewalDateUpdatedEventHandler(RenuMateDbContext db, ILogger<SubscriptionRenewalDateUpdatedEventHandler> logger) 
+public class SubscriptionRenewalDateUpdatedEventHandler(
+    RenuMateDbContext db, 
+    ILogger<SubscriptionRenewalDateUpdatedEventHandler> logger,
+    TimeProvider timeProvider) 
     : INotificationHandler<SubscriptionRenewalDateOrPlanUpdatedEvent>
 {
     public async Task Handle(SubscriptionRenewalDateOrPlanUpdatedEvent notification, CancellationToken cancellationToken)
@@ -24,7 +27,7 @@ public class SubscriptionRenewalDateUpdatedEventHandler(RenuMateDbContext db, IL
             .Where(rr => rr.SubscriptionId == notification.SubscriptionId)
             .ToListAsync(cancellationToken);
 
-        var now = DateTime.UtcNow;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
 
         foreach (var rule in reminderRules)
         {
@@ -35,7 +38,7 @@ public class SubscriptionRenewalDateUpdatedEventHandler(RenuMateDbContext db, IL
         
             if (scheduledAt > now)
             {
-                var occurrence = ReminderOccurrence.Create(rule.Id, scheduledAt);
+                var occurrence = ReminderOccurrence.Create(rule.Id, scheduledAt, now);
 
                 await db.ReminderOccurrences.AddAsync(occurrence, cancellationToken);
             }

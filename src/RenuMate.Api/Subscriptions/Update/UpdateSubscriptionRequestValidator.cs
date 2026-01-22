@@ -23,6 +23,14 @@ public class UpdateSubscriptionRequestValidator : AbstractValidator<UpdateSubscr
             .Null()
             .When(x => !x.Plan.Equals(nameof(SubscriptionPlan.Custom), StringComparison.OrdinalIgnoreCase))
             .WithMessage("Custom period should only be set for custom subscriptions.");
+        
+        RuleFor(x => x.TrialPeriodInDays)
+            .GreaterThan(0)
+            .When(x => x.Plan.Equals(nameof(SubscriptionPlan.Trial), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Trial period must be greater than zero for custom subscriptions.")
+            .Null()
+            .When(x => !x.Plan.Equals(nameof(SubscriptionPlan.Trial), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Trial period should only be set for trial subscriptions.");
 
         RuleFor(x => x.StartDate)
             .LessThanOrEqualTo(DateTime.UtcNow.AddYears(5))
