@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenuMate.Api", "src\RenuMat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenuMate.Api.Tests.Unit", "tests\RenuMate.Api.Tests.Unit\RenuMate.Api.Tests.Unit.csproj", "{69697F1C-600D-48A0-967C-1AEB7BC54F8E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenuMate.Api.Tests.Integration", "tests\RenuMate.Api.Tests.Integration\RenuMate.Api.Tests.Integration.csproj", "{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -43,6 +45,18 @@ Global
 		{69697F1C-600D-48A0-967C-1AEB7BC54F8E}.Release|x64.Build.0 = Release|Any CPU
 		{69697F1C-600D-48A0-967C-1AEB7BC54F8E}.Release|x86.ActiveCfg = Release|Any CPU
 		{69697F1C-600D-48A0-967C-1AEB7BC54F8E}.Release|x86.Build.0 = Release|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Debug|x64.Build.0 = Debug|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Debug|x86.Build.0 = Debug|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Release|x64.ActiveCfg = Release|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Release|x64.Build.0 = Release|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Release|x86.ActiveCfg = Release|Any CPU
+		{0DCF3FCA-CF05-4187-8A10-0167BE6BFA0C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
