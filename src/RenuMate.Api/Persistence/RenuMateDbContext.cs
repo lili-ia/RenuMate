@@ -89,14 +89,14 @@ public class RenuMateDbContext : DbContext
             
             entity.HasKey(e => e.Id);
             
-            entity.HasIndex(r => r.UserId);
+            entity.HasIndex(e => new { e.UserId, e.Name })
+                .IsUnique();
+            
+            entity.HasIndex(e => new { e.UserId, e.StartDate });
             
             entity.Property(e => e.Name)
                 .IsRequired()
                 .HasMaxLength(100);
-
-            entity.HasIndex(e => e.Name)
-                .IsUnique();
 
             entity.Property(e => e.Plan)
                 .HasConversion<string>()
@@ -140,6 +140,11 @@ public class RenuMateDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValue(new TimeSpan(9, 0, 0));
 
+            entity.HasIndex(r => r.SubscriptionId);
+            
+            entity.HasIndex(r => new { r.SubscriptionId, r.NotifyTimeUtc, r.DaysBeforeRenewal })
+                .IsUnique();
+
             entity.HasOne(r => r.Subscription)
                 .WithMany(s => s.Reminders) 
                 .HasForeignKey(r => r.SubscriptionId)
@@ -158,6 +163,10 @@ public class RenuMateDbContext : DbContext
             entity.Property(o => o.ScheduledAt)
                 .IsRequired();
 
+            entity.HasIndex(o => new { o.ReminderRuleId, o.ScheduledAt });
+            
+            entity.HasIndex(o => new { o.IsSent, o.ScheduledAt });
+            
             entity.Property(o => o.IsSent)
                 .IsRequired()
                 .HasDefaultValue(false);
@@ -169,9 +178,6 @@ public class RenuMateDbContext : DbContext
                 .WithMany(r => r.ReminderOccurrences) 
                 .HasForeignKey(o => o.ReminderRuleId)
                 .OnDelete(DeleteBehavior.SetNull);
-
-            entity.HasIndex(o => o.ScheduledAt);
-            entity.HasIndex(o => new { o.ReminderRuleId, o.IsSent });
         });
     }
 }
