@@ -1,3 +1,4 @@
+using Auth0.Core.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using RenuMate.Api.Exceptions;
@@ -17,6 +18,8 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
             DomainValidationException => (StatusCodes.Status400BadRequest, "Business Validation Error", false),
             DomainConflictException => (StatusCodes.Status409Conflict, "Business Rule Conflict", false),
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized", false),
+            RateLimitApiException => (StatusCodes.Status429TooManyRequests, "Too Many Requests", true),
+            ErrorApiException => (StatusCodes.Status502BadGateway, "External Service Error", true),
             _ => (StatusCodes.Status500InternalServerError, "Server Error", true)
         };
 

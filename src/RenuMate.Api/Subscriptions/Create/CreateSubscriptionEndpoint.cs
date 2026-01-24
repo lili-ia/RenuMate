@@ -14,6 +14,7 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/subscriptions", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Create a subscription.")

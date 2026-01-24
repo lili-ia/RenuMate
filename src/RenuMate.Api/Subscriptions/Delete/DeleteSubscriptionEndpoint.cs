@@ -11,6 +11,7 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapDelete("api/subscriptions/{id:guid}", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Delete a subscription.")

@@ -3,4 +3,6 @@ namespace RenuMate.Api.Services.Contracts;
 public interface IAuth0Service
 {
     Task UpdateUserInternalIdAsync(string auth0Id, Guid internalId, CancellationToken ct = default);
+
+    Task SetUserBlockStatusAsync(string auth0Id, bool blocked, CancellationToken ct = default);
 }

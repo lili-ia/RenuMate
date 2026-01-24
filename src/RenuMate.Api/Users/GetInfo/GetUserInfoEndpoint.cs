@@ -11,7 +11,7 @@ public abstract class GetUserInfoEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/users/me", Handle)
-        .RequireAuthorization()
+        .RequireAuthorization("ActiveUserOnly")
         .WithSummary("Get current user info.")
         .WithDescription("Retrieves details about the authenticated user including email, name, member since, and subscription count.")
         .WithTags("Users")
@@ -50,7 +50,7 @@ public abstract class GetUserInfoEndpoint : IEndpoint
         if (info is null)
         {
             return Results.Problem(
-                statusCode: 404,
+                statusCode: StatusCodes.Status404NotFound,
                 title: "User not found",
                 detail: "The authenticated user could not be found in the database."
             );

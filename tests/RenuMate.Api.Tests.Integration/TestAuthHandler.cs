@@ -40,6 +40,16 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
             claims.Add(new Claim("http://renumate.online/email_verified", emailVerified.ToString()));
         }
         
+        if (Context.Request.Headers.TryGetValue("X-Test-IsActive", out var isActive))
+        {
+            claims.Add(new Claim("http://renumate.online/is_active", isActive.ToString()));
+        }
+
+        if (claims.Count == 0)
+        {
+            return Task.FromResult(AuthenticateResult.Fail("No test auth headers"));
+        }
+        
         var identity = new ClaimsIdentity(claims, "Test");
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, "Test");

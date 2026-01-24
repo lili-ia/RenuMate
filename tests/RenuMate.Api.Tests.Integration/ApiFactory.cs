@@ -1,12 +1,16 @@
 using System.Net.Http.Headers;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Moq;
 using RenuMate.Api.Enums;
+using RenuMate.Api.Middleware;
 using RenuMate.Api.Persistence;
 using RenuMate.Api.Services.Contracts;
 using Respawn;
@@ -24,6 +28,10 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public Mock<IAuth0Service> Auth0ServiceMock { get; } = new();
 
     public Mock<ICurrencyService> CurrencyServiceMock { get; } = new();
+    
+    public Mock<ITokenService> TokenServiceMock { get; } = new();
+
+    public Mock<IEmailSender> EmailSenderMock { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -42,6 +50,15 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 options.UseNpgsql(_dbContainer.GetConnectionString());
             });
             
+            services.AddHttpContextAccessor();
+            
+            var authHandlersDescriptors = services
+                .Where(d => d.ServiceType == typeof(IAuthorizationHandler));
+            
+            services.RemoveAll<IAuthorizationHandler>();
+            services.AddSingleton<IAuthorizationHandler, VerifiedEmailOnlyAuthorizationHandler>();
+            services.AddSingleton<IAuthorizationHandler, ActiveUserOnlyAuthorizationHandler>();
+            
             var authDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IAuthenticationService));
             
             if (authDescriptor is not null)
@@ -58,10 +75,11 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("VerifiedEmailOnly", policy =>
-                {
-                    policy.RequireClaim("http://renumate.online/email_verified", "true");
-                });
+                options.AddPolicy("VerifiedEmailOnly", policy => 
+                    policy.Requirements.Add(new EmailVerifiedRequirement()));
+    
+                options.AddPolicy("ActiveUserOnly", policy => 
+                    policy.Requirements.Add(new ActiveUserRequirement()));
             });
 
             var auth0ServiceDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IAuth0Service));
@@ -92,6 +110,28 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 });
             
             services.AddSingleton(CurrencyServiceMock.Object);
+            
+            var tokenDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(ITokenService));
+
+            if (tokenDescriptor is not null)
+            {
+                services.Remove(tokenDescriptor);
+            }
+            
+            services.AddSingleton(TokenServiceMock.Object);
+            
+            services.AddSingleton<IValidator<string>>(new InlineValidator<string>());
+            
+            var emailDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IEmailSender));
+
+            if (emailDescriptor is not null)
+            {
+                services.Remove(emailDescriptor);
+            }
+            
+            services.AddSingleton(EmailSenderMock.Object);
         });
 
         builder.UseEnvironment("Development");
@@ -135,7 +175,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         string email = "test@example.com",
         string name = "Test User",
         string userId = "",
-        bool emailVerified = true)
+        bool emailVerified = true,
+        bool isActive = true)
     {
         var client = CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
@@ -144,6 +185,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         client.DefaultRequestHeaders.Add("X-Test-Email", email);
         client.DefaultRequestHeaders.Add("X-Test-Name", name);
         client.DefaultRequestHeaders.Add("X-Test-EmailVerified", emailVerified.ToString().ToLower());
+        client.DefaultRequestHeaders.Add("X-Test-IsActive", isActive.ToString().ToLower());
     
         if (!string.IsNullOrEmpty(userId))
         {
@@ -158,7 +200,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         string? email = "", 
         string? auth0Id = "", 
         string? name = "Name",
-        bool? verified = true)
+        bool? verified = true,
+        bool? isActive = true)
     {
         if (string.IsNullOrEmpty(email))
         {
@@ -174,7 +217,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<RenuMateDbContext>();
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "Users" ("Id", "Email", "Auth0Id", "Name", "EmailConfirmed", "IsActive", "IsMetadataSynced", "CreatedAt")
-            VALUES ({userId}, {email}, {auth0Id}, {name}, {verified}, {true}, {true}, {DateTime.UtcNow});
+            VALUES ({userId}, {email}, {auth0Id}, {name}, {verified}, {isActive}, {true}, {DateTime.UtcNow});
         """);
     }
     
@@ -224,7 +267,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     
     public async Task CreateExampleReminderRule(
         Guid reminderRuleId,
-        Guid reminderOccurrenceId,
+        Guid? reminderOccurrenceId,
         Guid subscriptionId,
         int daysBeforeRenewal = 3,
         TimeSpan? notifyTimeUtc = null,
@@ -257,6 +300,22 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                ("Id", "ReminderRuleId", "ScheduledAt", "IsSent", "CreatedAt")
             VALUES
                ({reminderOccurrenceId}, {reminderRuleId}, {scheduledAt}, {false}, {DateTime.UtcNow});
+        """);
+    }
+
+    public async Task CreateExampleReminderOccurrence(
+        Guid ruleId,
+        Guid occurrenceId,
+        bool isSent = false)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RenuMateDbContext>();
+        
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "ReminderOccurrences"
+              ("Id", "ReminderRuleId", "ScheduledAt", "IsSent", "CreatedAt")
+            VALUES
+              ({occurrenceId}, {ruleId}, {DateTime.UtcNow.AddDays(25)}, {isSent}, {DateTime.UtcNow});
         """);
     }
 }

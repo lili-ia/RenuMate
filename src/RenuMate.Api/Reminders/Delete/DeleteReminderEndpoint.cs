@@ -11,6 +11,7 @@ public abstract class DeleteReminderEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapDelete("api/reminders/{id:guid}", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Deletes a reminder.")

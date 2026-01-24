@@ -12,6 +12,7 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/subscriptions/{id:guid}", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Get subscription details by ID.")
         .WithDescription("Returns detailed information about a subscription owned by the authenticated user.")

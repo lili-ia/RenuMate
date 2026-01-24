@@ -12,6 +12,7 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/subscriptions", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Get user subscriptions.")
         .WithDescription("Returns a paginated list of subscriptions belonging to the authenticated user.")
@@ -20,8 +21,8 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
         .Produces(StatusCodes.Status401Unauthorized);
     
     private static async Task<IResult> Handle(
-        [FromServices] IUserContext userContext,
-        [FromServices] RenuMateDbContext db,
+        IUserContext userContext,
+        RenuMateDbContext db,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)

@@ -11,6 +11,7 @@ public abstract class GetAllRemindersForSubscriptionEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/reminders", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Get all reminders for a subscription.")
         .WithDescription("Retrieves all reminder rules associated with a subscription for the authenticated user.")
@@ -21,9 +22,9 @@ public abstract class GetAllRemindersForSubscriptionEndpoint
         .Produces(StatusCodes.Status404NotFound);
     
     private static async Task<IResult> Handle(
-        [FromQuery] Guid subscriptionId,
-        [FromServices] RenuMateDbContext db,
-        [FromServices] IUserContext userContext,
+        [FromQuery] Guid subscriptionId, 
+        RenuMateDbContext db,
+        IUserContext userContext,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;

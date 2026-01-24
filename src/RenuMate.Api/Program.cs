@@ -15,7 +15,7 @@ using IEmailSender = RenuMate.Api.Services.Contracts.IEmailSender;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using RenuMate.Api.Converters;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
@@ -57,36 +57,18 @@ builder.Services.AddAuthentication(options =>
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true
         };
-            
-        options.Events = new JwtBearerEvents
-        {
-            OnForbidden = async context =>
-            {
-                var problem = new ProblemDetails
-                {
-                    Title = "Email not verified",
-                    Status = StatusCodes.Status403Forbidden,
-                    Detail = "You must verify your email address before accessing this resource.",
-                    Instance = context.Request.Path
-                };
-                await context.Response.WriteAsJsonAsync(problem);
-            },
-        };
     });
 
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("VerifiedEmailOnly", policy => 
-    {
-        policy.RequireAssertion(context => 
-        {
-            var emailVerifiedClaim = context.User.FindFirst("http://renumate.online/email_verified");
-
-            return emailVerifiedClaim != null && 
-                   emailVerifiedClaim.Value.Equals("true", StringComparison.OrdinalIgnoreCase);
-        });
-    });
+        policy.Requirements.Add(new EmailVerifiedRequirement()));
+    
+    options.AddPolicy("ActiveUserOnly", policy => 
+        policy.Requirements.Add(new ActiveUserRequirement()));
 });
+
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, CustomAuthorizationResultHandler>();
 
 builder.Services.AddCors(options =>
 {
@@ -117,9 +99,10 @@ builder.Services.Configure<JsonOptions>(options =>
     options.SerializerOptions.Converters.Add(new UtcDateTimeConverter());
 });
 
-
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddProblemDetails();
+builder.Services.AddSingleton<IAuthorizationHandler, VerifiedEmailOnlyAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, ActiveUserOnlyAuthorizationHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddMediatR(config =>
@@ -152,7 +135,7 @@ builder.Services.AddValidatorsFromAssemblies(AppDomain.CurrentDomain.GetAssembli
 builder.Services.AddTransient<IReminderService, ReminderService>();
 builder.Services.AddTransient<ISubscriptionService, SubscriptionService>();
 builder.Services.AddHttpClient<ICurrencyService, CurrencyService>();
-builder.Services.AddScoped<ICurrencyService, CurrencyService>();
+builder.Services.AddScoped<IPendingEmailService, PendingEmailService>();
 
 builder.Services.AddHangfire(config =>
     config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("HangfireConnection")));
@@ -219,6 +202,11 @@ try
         "process-reminders",
         service => service.ProcessDueRemindersAsync(CancellationToken.None),
         Cron.Minutely);
+    
+    RecurringJob.AddOrUpdate<IPendingEmailService>(
+        "process-pending-emails",
+        service => service.ProcessPendingEmailsAsync(CancellationToken.None),
+        "*/10 * * * *");
 }
 catch (PostgreSqlDistributedLockException ex)
 {
@@ -226,3 +214,5 @@ catch (PostgreSqlDistributedLockException ex)
 }
 
 app.Run();
+
+public partial class Program { }

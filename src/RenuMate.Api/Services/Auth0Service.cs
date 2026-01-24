@@ -1,5 +1,6 @@
 using Auth0.AuthenticationApi;
 using Auth0.AuthenticationApi.Models;
+using Auth0.Core.Exceptions;
 using Auth0.ManagementApi;
 using Auth0.ManagementApi.Models;
 using Microsoft.Extensions.Caching.Memory;
@@ -28,9 +29,51 @@ public class Auth0Service(
 
             await managementClient.Users.UpdateAsync(auth0Id, updateRequest, ct);
         }
+        catch (RateLimitApiException ex)
+        {
+            logger.LogError(ex, "Auth0 API Rate Limits exceeded: {Message}", ex.Message);
+            throw; 
+        }
+        catch (ErrorApiException ex)
+        {
+            logger.LogError(ex, "Auth0 API Error: {Message}. Status: {Status}", ex.Message, ex.StatusCode);
+            throw; 
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to update Auth0 metadata for user {Auth0Id}", auth0Id);
+            logger.LogError(ex, "Unknown error during Auth0 sync for user {Auth0Id}", auth0Id);
+            throw;
+        }
+    }
+
+    public async Task SetUserBlockStatusAsync(string auth0Id, bool blocked, CancellationToken ct = default)
+    {
+        try
+        {
+            var token = await GetManagementTokenAsync();
+            managementClient.UpdateAccessToken(token);
+
+            var updateRequest = new UserUpdateRequest
+            {
+                AppMetadata = new { blocked = blocked }
+            };
+
+            await managementClient.Users.UpdateAsync(auth0Id, updateRequest, ct);
+        }
+        catch (RateLimitApiException ex)
+        {
+            logger.LogError(ex, "Auth0 API Rate Limits exceeded: {Message}", ex.Message);
+            throw; 
+        }
+        catch (ErrorApiException ex)
+        {
+            logger.LogError(ex, "Auth0 API Error: {Message}. Status: {Status}", ex.Message, ex.StatusCode);
+            throw; 
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unknown error during Auth0 sync for user {Auth0Id}", auth0Id);
+            throw;
         }
     }
 

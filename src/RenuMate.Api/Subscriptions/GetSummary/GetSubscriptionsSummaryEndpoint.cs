@@ -12,6 +12,7 @@ public class GetSubscriptionsSummaryEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapGet("api/subscriptions/summary", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .WithSummary("Get summary for user's subscriptions.")
         .WithDescription("Calculates a financial overview of all active subscriptions. " +

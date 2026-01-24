@@ -14,6 +14,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/reminders", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Creates a new reminder for a subscription.")

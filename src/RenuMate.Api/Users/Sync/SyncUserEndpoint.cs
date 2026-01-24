@@ -10,7 +10,7 @@ public class SyncUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/users/sync-user", Handle)
-        .RequireAuthorization()
+        .RequireAuthorization("ActiveUserOnly")
         .WithSummary("Syncs Auth0 user with local database")
         .WithDescription("Creates a new user or links an existing legacy user by email.")
         .Produces<SyncUserResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)

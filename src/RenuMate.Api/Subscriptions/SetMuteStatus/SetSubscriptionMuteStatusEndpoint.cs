@@ -11,6 +11,7 @@ public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPatch("api/subscriptions/{id:guid}", Handle)
+        .RequireAuthorization("ActiveUserOnly")
         .RequireAuthorization("VerifiedEmailOnly")
         .AddEndpointFilter<InvalidateSummaryCacheEndpointFilter>()
         .WithSummary("Set subscription mute status.")
