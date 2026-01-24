@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using RenuMate.Api.Entities;
 using RenuMate.Api.Persistence;
 using RenuMate.Api.Services.Contracts;
 
@@ -21,6 +22,7 @@ public class ReminderService(
                 .ThenInclude(r => r.Subscription)
                 .ThenInclude(s => s.User)
             .Where(o => !o.ReminderRule.Subscription.IsMuted 
+                        && o.ReminderRule.Subscription.User.IsActive
                         && !o.IsSent && o.ScheduledAt <= now 
                         && o.ReminderRuleId.HasValue)
             .ToListAsync(ct);
@@ -58,9 +60,9 @@ public class ReminderService(
                     period: period,
                     note: note);
 
-                var sent = await emailService.SendEmailAsync(sub.User.Email, subject, body, ct);
+                var emailSenderResponse = await emailService.SendEmailAsync(sub.User.Email, subject, body, ct);
 
-                if (sent)
+                if (emailSenderResponse.IsSuccess)
                 {
                     occurrence.MarkAsSent();
 
@@ -70,6 +72,17 @@ public class ReminderService(
                     {
                         rule.AddOccurrence(nextOccurrence);
                     }
+                }
+                else
+                {
+                    var pendingEmail = PendingEmail.Create(
+                        to: sub.User.Email, 
+                        subject: subject, 
+                        body,
+                        now: timeProvider.GetUtcNow().UtcDateTime,
+                        lastError: emailSenderResponse.ErrorMessage);
+            
+                    await db.PendingEmails.AddAsync(pendingEmail, ct);
                 }
             }
             catch (Exception ex)

@@ -25,6 +25,8 @@ public class RenuMateDbContext : DbContext
     public virtual DbSet<ReminderRule> ReminderRules { get; set; }
     
     public virtual DbSet<ReminderOccurrence> ReminderOccurrences { get; set; }
+    
+    public virtual DbSet<PendingEmail> PendingEmails { get; set; }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = new CancellationToken())
     {
@@ -178,6 +180,28 @@ public class RenuMateDbContext : DbContext
                 .WithMany(r => r.ReminderOccurrences) 
                 .HasForeignKey(o => o.ReminderRuleId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+        
+        modelBuilder.Entity<PendingEmail>(entity =>
+        {
+            entity.ToTable("PendingEmails");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.To)
+                .IsRequired();
+            
+            entity.Property(e => e.Subject)
+                .IsRequired();
+            
+            entity.Property(e => e.Body)
+                .IsRequired();
+
+            entity.Property(e => e.RetryCount);
+            
+            entity.Property(e => e.MaxRetries);
+
+            entity.HasIndex(e => new { e.IsSent, e.RetryCount });
         });
     }
 }

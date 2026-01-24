@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Api.Common;
+using RenuMate.Api.Entities;
 using RenuMate.Api.Persistence;
 using RenuMate.Api.Services.Contracts;
 using RenuMate.Api.Extensions;
@@ -20,6 +21,8 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
 
+    private const string Message = "If your account exists and is deactivated, a reactivation email was sent."; 
+    
     private static async Task<IResult> Handle(
         [FromBody] ReactivateUserRequest userRequest, 
         RenuMateDbContext db,
@@ -27,7 +30,9 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
         IConfiguration configuration,
         IEmailSender emailSender,
         IEmailTemplateService emailTemplateService,
+        ILogger<RequestUserReactivateEndpoint> logger,
         IValidator<ReactivateUserRequest> validator,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(userRequest, cancellationToken);
@@ -37,14 +42,13 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
             return validation.ToFailureResult();
         }
         
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == userRequest.Email, cancellationToken);
+        var user = await db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == userRequest.Email, cancellationToken);
 
         if (user is null || user.IsActive)
         {
-            return Results.Ok(new MessageResponse
-            (
-                Message: "If your account exists and is deactivated, a reactivation email was sent."
-            ));
+            return Results.Ok(new MessageResponse(Message));
         }
 
         var frontendUrl = configuration["App:FrontendUrl"];
@@ -59,20 +63,24 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
         var link = $"{frontendUrl}/reactivate?token={Uri.EscapeDataString(token)}";
         var body = emailTemplateService.BuildUserReactivateMessage(user.Name, link);
 
-        var sent =  await emailSender.SendEmailAsync(user.Email, "Reactivate your account", body);
+        var emailSenderResponse = await emailSender.SendEmailAsync(
+            user.Email, "Reactivate your account", body, cancellationToken);
 
-        if (!sent)
+        if (!emailSenderResponse.IsSuccess)
         {
-            return Results.Problem(
-                statusCode: 500,
-                title: "Email Sending Failed",
-                detail: "Could not send the reactivation email."
-            );
+            logger.LogError("Failed to send reactivation email to {Email}", user.Email);
+            
+            var pendingEmail = PendingEmail.Create(
+                to: user.Email, 
+                subject: "Reactivate your account", 
+                body,
+                now: timeProvider.GetUtcNow().UtcDateTime,
+                lastError: emailSenderResponse.ErrorMessage);
+            
+            await db.PendingEmails.AddAsync(pendingEmail, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
         }
 
-        return Results.Ok(new MessageResponse
-        (
-            Message: "If your account exists and is deactivated, a reactivation email was sent."
-        ));
+        return Results.Ok(new MessageResponse(Message));
     }
 }

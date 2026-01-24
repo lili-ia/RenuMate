@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using RenuMate.Api.Services.Contracts;
 using SendGrid;
+using SendGrid.Helpers.Errors.Model;
 using SendGrid.Helpers.Mail;
 
 namespace RenuMate.Api.Services.Email;
@@ -9,9 +11,13 @@ public class EmailSender(IOptions<EmailSenderOptions> options) : IEmailSender
 {
     private readonly EmailSenderOptions _options = options.Value;
 
-    public async Task<bool> SendEmailAsync(string to, string subject, string body, CancellationToken ct)
+    public async Task<EmailSenderResponse> SendEmailAsync(string to, string subject, string body, CancellationToken ct)
     {
-        var client = new SendGridClient(_options.ApiKey);
+        var client = new SendGridClient(new SendGridClientOptions
+        {
+            ApiKey = _options.ApiKey,
+            HttpErrorAsException = true
+        });
 
         var from = new EmailAddress(_options.FromEmail, _options.FromUser);
 
@@ -28,9 +34,18 @@ public class EmailSender(IOptions<EmailSenderOptions> options) : IEmailSender
         };
         
         msg.TrackingSettings = trackingSettings;
-        
-        var response = await client.SendEmailAsync(msg, ct);
 
-        return response.IsSuccessStatusCode;
+        try
+        {
+            await client.SendEmailAsync(msg, ct);
+            
+            return new EmailSenderResponse(IsSuccess: true, ErrorMessage: null);
+        }
+        catch (Exception ex)
+        {
+            var errorResponse = JsonConvert.DeserializeObject<SendGridErrorResponse>(ex.Message);
+            
+            return new EmailSenderResponse(IsSuccess: false, ErrorMessage: errorResponse?.ToString());
+        }
     }
 }
