@@ -20,7 +20,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
         .WithSummary("Creates a new reminder for a subscription.")
         .WithDescription("Adds a reminder rule for a given subscription. A maximum of three reminder rules can be created per subscription.")
         .WithTags("Reminders")
-        .Produces<CreateReminderResponse>(200, MediaTypeNames.Application.Json)
+        .Produces<CreateReminderResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status404NotFound)

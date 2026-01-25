@@ -122,7 +122,7 @@ public class DeactivateUserEndpointTests(ApiFactory factory) : IClassFixture<Api
         await factory.CreateExampleUserAsync(_userId);
     
         await factory.CreateExampleSubscriptionAsync(_subId, _userId, DateTime.UtcNow);
-        await factory.CreateExampleReminderRule(_ruleId, null, _subId, createOccurrence: false);
+        await factory.CreateExampleReminderRuleAsync(_ruleId, null, _subId, createOccurrence: false);
     
         var client = factory.GetAuthenticatedClient(userId: _userId.ToString());
     
@@ -145,8 +145,8 @@ public class DeactivateUserEndpointTests(ApiFactory factory) : IClassFixture<Api
         await factory.ResetDatabaseAsync();
         await factory.CreateExampleUserAsync(_userId);
         await factory.CreateExampleSubscriptionAsync(_subId, _userId, DateTime.UtcNow);
-        await factory.CreateExampleReminderRule(_ruleId, Guid.NewGuid(), _subId, createOccurrence: true);
-        await factory.CreateExampleReminderOccurrence(_ruleId, Guid.NewGuid(), isSent: true);
+        await factory.CreateExampleReminderRuleAsync(_ruleId, Guid.NewGuid(), _subId, createOccurrence: true);
+        await factory.CreateExampleReminderOccurrenceAsync(_ruleId, Guid.NewGuid(), isSent: true);
     
         var client = factory.GetAuthenticatedClient(userId: _userId.ToString());
     

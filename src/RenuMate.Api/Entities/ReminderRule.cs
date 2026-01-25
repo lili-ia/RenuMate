@@ -12,7 +12,7 @@ public class ReminderRule : BaseEntity
     
     public int DaysBeforeRenewal { get; private set; }
 
-    public IReadOnlyCollection<ReminderOccurrence> ReminderOccurrences => _occurrences.AsReadOnly();
+    public IReadOnlyCollection<ReminderOccurrence> ReminderOccurrences => _reminderOccurrences.AsReadOnly();
     
     public static ReminderRule Create(Guid subscriptionId, TimeSpan notifyTimeUtc, int daysBeforeRenewal)
     {
@@ -50,21 +50,21 @@ public class ReminderRule : BaseEntity
             throw new ArgumentNullException(nameof(occurrence));
         }
         
-        if (_occurrences.Any(o => o.ScheduledAt == occurrence.ScheduledAt))
+        if (_reminderOccurrences.Any(o => o.ScheduledAt == occurrence.ScheduledAt))
         {
             throw new DomainConflictException(
                 $"A reminder occurrence for this rule is already scheduled at {occurrence.ScheduledAt}.");
         }
 
-        _occurrences.Add(occurrence);
+        _reminderOccurrences.Add(occurrence);
     }
 
     public void ClearUnsentReminderOccurrences()
     {
-        _occurrences.RemoveAll(o => !o.IsSent);
+        _reminderOccurrences.RemoveAll(o => !o.IsSent);
     }
     
     private ReminderRule() { }
     
-    private readonly List<ReminderOccurrence> _occurrences = [];
+    private readonly List<ReminderOccurrence> _reminderOccurrences = [];
 }

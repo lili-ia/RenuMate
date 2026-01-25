@@ -30,20 +30,24 @@ public abstract class DeleteReminderEndpoint : IEndpoint
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
-        
-        var rows = await db.ReminderRules
-            .Where(r => r.Id == id 
-                        && r.Subscription.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
 
-        if (rows == 0)
+        var rule = await db.ReminderRules
+            .Include(r => r.ReminderOccurrences)
+            .Where(r => r.Id == id && r.Subscription.UserId == userId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (rule is null)
         {
             return Results.Problem(
-                statusCode: 404,
+                statusCode: StatusCodes.Status404NotFound,
                 title: "Reminder not found",
                 detail: "No reminder exists with the specified ID for this subscription.");
         }
+        
+        db.ReminderRules.Remove(rule);
+        await db.SaveChangesAsync(cancellationToken);
 
         return Results.NoContent();
     }
+    
 }

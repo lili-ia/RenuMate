@@ -40,6 +40,17 @@ public class RenuMateDbContext : DbContext
             .ToList()
             .ForEach(e => e.Entity.ClearDomainEvents());
 
+        var orphansToDelete = ChangeTracker.Entries<ReminderOccurrence>()
+            .Where(e => e.State == EntityState.Modified && 
+                        e.Property(x => x.ReminderRuleId).IsModified && 
+                        e.Entity.ReminderRuleId == null && 
+                        !e.Entity.IsSent);
+
+        foreach (var entry in orphansToDelete)
+        {
+            entry.State = EntityState.Deleted;
+        }
+        
         var result = await base.SaveChangesAsync(cancellationToken);
 
         foreach (var domainEvent in domainEvents)
@@ -151,6 +162,9 @@ public class RenuMateDbContext : DbContext
                 .WithMany(s => s.Reminders) 
                 .HasForeignKey(r => r.SubscriptionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Navigation(r => r.ReminderOccurrences)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
         modelBuilder.Entity<ReminderOccurrence>(entity =>

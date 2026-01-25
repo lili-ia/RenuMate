@@ -147,11 +147,11 @@ public class GetSubscriptionsSummaryTests(ApiFactory factory) : IClassFixture<Ap
 
         var subId = Guid.NewGuid();
         await factory.CreateExampleSubscriptionAsync(subId, _userId, DateTime.UtcNow);
-        await factory.CreateExampleReminderRule(Guid.NewGuid(), Guid.NewGuid(), subId);
+        await factory.CreateExampleReminderRuleAsync(Guid.NewGuid(), Guid.NewGuid(), subId);
 
         var mutedSubId = Guid.NewGuid();
         await factory.CreateExampleSubscriptionAsync(mutedSubId, _userId, DateTime.UtcNow, isMuted: true);
-        await factory.CreateExampleReminderRule(Guid.NewGuid(), Guid.NewGuid(), mutedSubId);
+        await factory.CreateExampleReminderRuleAsync(Guid.NewGuid(), Guid.NewGuid(), mutedSubId);
 
         var client = factory.GetAuthenticatedClient(userId: _userId.ToString());
         

@@ -265,7 +265,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         """);
     }
     
-    public async Task CreateExampleReminderRule(
+    public async Task CreateExampleReminderRuleAsync(
         Guid reminderRuleId,
         Guid? reminderOccurrenceId,
         Guid subscriptionId,
@@ -303,7 +303,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         """);
     }
 
-    public async Task CreateExampleReminderOccurrence(
+    public async Task CreateExampleReminderOccurrenceAsync(
         Guid ruleId,
         Guid occurrenceId,
         bool isSent = false)

@@ -79,7 +79,7 @@ public class DeleteSubscriptionTests(ApiFactory factory) : IClassFixture<ApiFact
         await factory.ResetDatabaseAsync();
         await factory.CreateExampleUserAsync(_userId);
         await factory.CreateExampleSubscriptionAsync(_subId, _userId, DateTime.UtcNow);
-        await factory.CreateExampleReminderRule(_ruleId, _occurrenceId, _subId, createOccurrence: true);
+        await factory.CreateExampleReminderRuleAsync(_ruleId, _occurrenceId, _subId, createOccurrence: true);
 
         var client = factory.GetAuthenticatedClient(userId: _userId.ToString());
 
