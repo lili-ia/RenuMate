@@ -58,9 +58,10 @@ public class User : BaseEntity
         
         IsActive = false;
         
-        foreach (var sub in _subscriptions)
+        foreach (var sub in _subscriptions.ToList())
         {
             sub.SetMuteStatus(true);
+            sub.ClearAllReminderRules();
         }
     }
 

@@ -1,5 +1,4 @@
 using System.Net.Mime;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Api.Common;
 using RenuMate.Api.Persistence;
@@ -10,7 +9,7 @@ namespace RenuMate.Api.Users.Deactivate;
 public abstract class DeactivateUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
-        .MapDelete("api/users", Handle)
+        .MapDelete("api/users/me", Handle)
         .RequireAuthorization()
         .WithSummary("Deactivate user account.")
         .WithDescription("Sets the authenticated user's account to inactive.")
@@ -21,15 +20,18 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         .Produces(StatusCodes.Status500InternalServerError);
 
     private static async Task<IResult> Handle(
-        [FromServices] RenuMateDbContext db,
-        [FromServices] IUserContext userContext,
-        [FromServices] ILogger<DeactivateUserEndpoint> logger,
+        RenuMateDbContext db,
+        IUserContext userContext,
+        IAuth0Service auth0Service,
+        ILogger<DeactivateUserEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
 
         var user = await db.Users
-            .Include(u => u.Subscriptions) 
+            .Include(u => u.Subscriptions)
+                .ThenInclude(s => s.Reminders)
+                    .ThenInclude(r => r.ReminderOccurrences)
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
         if (user is null)
@@ -41,21 +43,17 @@ public abstract class DeactivateUserEndpoint : IEndpoint
             );
         }
         
-        try
+        if (!user.IsActive)
         {
-            await db.SaveChangesAsync(cancellationToken);
-
-            logger.LogInformation("User {UserId} deactivated their account.", userId);
-
-            return Results.Ok(new MessageResponse
-            (
-                Message: "Your account was successfully deactivated."
-            ));
+            return Results.Ok(new MessageResponse("User account is already deactivated."));
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to deactivate user {UserId}.", userId);
-            throw; 
-        }
+        
+        user.Deactivate();
+        await auth0Service.SetUserBlockStatusAsync(user.Auth0Id, blocked: true, cancellationToken);
+        
+        await db.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("User {UserId} deactivated their account.", userId);
+
+        return Results.Ok(new MessageResponse("Your account was successfully deactivated."));
     }
 }

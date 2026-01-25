@@ -228,6 +228,16 @@ public class Subscription : BaseEntity
             rule.AddOccurrence(occurrence);
         }
     }
+
+    public void ClearAllReminderRules()
+    {
+        foreach (var rule in _reminders.ToList())
+        {
+            rule.ClearUnsentReminderOccurrences();
+        }
+        
+        _reminders.Clear();
+    }
     
     private int GetPlanDurationInDays()
     {

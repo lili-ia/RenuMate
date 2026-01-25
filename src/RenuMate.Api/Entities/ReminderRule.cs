@@ -58,6 +58,11 @@ public class ReminderRule : BaseEntity
 
         _occurrences.Add(occurrence);
     }
+
+    public void ClearUnsentReminderOccurrences()
+    {
+        _occurrences.RemoveAll(o => !o.IsSent);
+    }
     
     private ReminderRule() { }
     
