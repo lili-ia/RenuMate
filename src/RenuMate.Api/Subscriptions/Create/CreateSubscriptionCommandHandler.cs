@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RenuMate.Api.Entities;
@@ -7,7 +8,10 @@ using RenuMate.Api.Persistence;
 
 namespace RenuMate.Api.Subscriptions.Create;
 
-public class CreateSubscriptionCommandHandler(RenuMateDbContext db, TimeProvider timeProvider) 
+public class CreateSubscriptionCommandHandler(
+    RenuMateDbContext db, 
+    TimeProvider timeProvider, 
+    ILogger<CreateSubscriptionCommandHandler> logger) 
     : IRequestHandler<CreateSubscriptionCommand, IResult>
 {
     public async Task<IResult> Handle(CreateSubscriptionCommand request, CancellationToken cancellationToken)
@@ -33,6 +37,8 @@ public class CreateSubscriptionCommandHandler(RenuMateDbContext db, TimeProvider
 
             db.Subscriptions.Add(subscription); 
             await db.SaveChangesAsync(cancellationToken);
+            
+            logger.LogInformation("User {UserId} successfully created new subscription {SubId}.", request.UserId, subscription.Id);
 
             return Results.Ok(new CreateSubscriptionResponse(
                 subscription.Id,
@@ -46,6 +52,9 @@ public class CreateSubscriptionCommandHandler(RenuMateDbContext db, TimeProvider
         }
         catch (DbUpdateException ex) when (ex.InnerException is NpgsqlException { SqlState: "23505" })  
         {
+            logger.LogInformation("User {UserId} attempted to create more than one subscription with the same name.", 
+                request.UserId);
+            
             return Results.Problem(
                 statusCode: StatusCodes.Status403Forbidden,
                 title: "Subscription already exists.",

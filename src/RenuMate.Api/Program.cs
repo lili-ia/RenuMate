@@ -15,15 +15,22 @@ using IEmailSender = RenuMate.Api.Services.Contracts.IEmailSender;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
+using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using RenuMate.Api.Converters;
+using Serilog;
+using Serilog.Events;
 using JsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var configuration = builder.Configuration;
 var connectionString = configuration.GetConnectionString("DefaultConnection");
+
+builder.Services.AddHealthChecks()
+    .AddNpgSql(connectionString!);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddMemoryCache();
@@ -125,7 +132,19 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.PropertyNameCaseInsensitive = true;
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
-builder.Services.AddLogging();
+
+using var log = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .WriteTo.File(
+        "log-.txt", 
+        rollingInterval: RollingInterval.Day, 
+        restrictedToMinimumLevel: LogEventLevel.Warning)
+    .CreateLogger();
+
+Log.Logger = log;
+
+builder.Services.AddSerilog();
 builder.Services.AddSingleton<IEmailTemplateService, EmailTemplateService>();
 builder.Services.Configure<EmailSenderOptions>(builder.Configuration.GetSection("EmailSender"));
 builder.Services.AddTransient<IEmailSender, EmailSender>();
@@ -144,7 +163,6 @@ builder.Services.AddHangfireServer();
 var app = builder.Build();
 
 using var scope = app.Services.CreateScope();
-var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 var db = scope.ServiceProvider.GetRequiredService<RenuMateDbContext>();
 
 var retries = 10;
@@ -153,18 +171,18 @@ while (retries > 0)
     try
     {
         db.Database.Migrate();
-        logger.LogInformation("Database migrated successfully.");
+        Log.Information("Database migrated successfully.");
         break;
     }
     catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
     {
-        logger.LogWarning("Table already exists: {Message}", ex.Message);
+        Log.Warning("Table already exists: {Message}", ex.Message);
         break;
     }
     catch (Exception ex)
     {
         retries--;
-        logger.LogWarning(ex, "Database not ready, retrying... {Retries} attempts left.", retries);
+        Log.Warning(ex, "Database not ready, retrying... {Retries} attempts left.", retries);
         Thread.Sleep(5000);
     }
 }
@@ -191,6 +209,16 @@ if (app.Environment.IsDevelopment())
 app.MapEndpoints();
 app.MapHangfireDashboard();
 
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+});
+
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
 try
 {
     RecurringJob.AddOrUpdate<ISubscriptionService>(
@@ -213,6 +241,18 @@ catch (PostgreSqlDistributedLockException ex)
     Console.WriteLine("Could not acquire lock, skipping job update.");
 }
 
-app.Run();
+try
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
+
 
 public partial class Program { }

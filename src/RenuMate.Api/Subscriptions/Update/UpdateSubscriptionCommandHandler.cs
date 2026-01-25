@@ -5,7 +5,10 @@ using RenuMate.Api.Persistence;
 
 namespace RenuMate.Api.Subscriptions.Update;
 
-public class UpdateSubscriptionCommandHandler(RenuMateDbContext db, TimeProvider timeProvider) 
+public class UpdateSubscriptionCommandHandler(
+    RenuMateDbContext db, 
+    TimeProvider timeProvider, 
+    ILogger<UpdateSubscriptionCommandHandler> logger) 
     : IRequestHandler<UpdateSubscriptionCommand, IResult>
 {
     public async Task<IResult> Handle(UpdateSubscriptionCommand request, CancellationToken cancellationToken)
@@ -15,6 +18,8 @@ public class UpdateSubscriptionCommandHandler(RenuMateDbContext db, TimeProvider
 
         if (subscription is null)
         {
+            logger.LogInformation("Subscription {SubId} not found by user {UserId}.", request.SubscriptionId, request.UserId);
+            
             return Results.Problem(
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Not Found",
@@ -33,6 +38,9 @@ public class UpdateSubscriptionCommandHandler(RenuMateDbContext db, TimeProvider
             
             await db.SaveChangesAsync(cancellationToken);
             
+            logger.LogInformation("Subscription {SubId} was successfully updated by user {UserId}.", 
+                request.SubscriptionId, request.UserId);
+            
             return Results.Ok(new UpdateSubscriptionResponse
             (
                 subscription.Id,
@@ -46,6 +54,9 @@ public class UpdateSubscriptionCommandHandler(RenuMateDbContext db, TimeProvider
         }
         catch (DbUpdateException ex) when (ex.InnerException is NpgsqlException { SqlState: "23505" })  
         {
+            logger.LogInformation("User {UserId} attempted to create more than one subscription with the same name.", 
+                request.UserId);
+            
             return Results.Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Subscription with this name already exists.",

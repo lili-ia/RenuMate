@@ -63,7 +63,7 @@ public class CurrencyService(
         }
         catch (HttpRequestException ex)
         {
-            logger.LogWarning(ex, "Currency API unreachable: {Url}", url);
+            logger.LogError(ex, "Currency API unreachable: {Url}", url);
             return null;
         }
         catch (JsonException ex)

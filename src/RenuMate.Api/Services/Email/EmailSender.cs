@@ -7,7 +7,7 @@ using SendGrid.Helpers.Mail;
 
 namespace RenuMate.Api.Services.Email;
 
-public class EmailSender(IOptions<EmailSenderOptions> options) : IEmailSender
+public class EmailSender(IOptions<EmailSenderOptions> options, ILogger<EmailSender> logger) : IEmailSender
 {
     private readonly EmailSenderOptions _options = options.Value;
 
@@ -44,6 +44,7 @@ public class EmailSender(IOptions<EmailSenderOptions> options) : IEmailSender
         catch (Exception ex)
         {
             var errorResponse = JsonConvert.DeserializeObject<SendGridErrorResponse>(ex.Message);
+            logger.LogError("SendGrid error: {Error}", errorResponse);
             
             return new EmailSenderResponse(IsSuccess: false, ErrorMessage: errorResponse?.ToString());
         }

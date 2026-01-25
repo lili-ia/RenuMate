@@ -44,7 +44,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
         {
             return validation.ToFailureResult();
         }
-
+        
         var subscription = await db.Subscriptions
             .Where(s => s.Id == request.SubscriptionId && s.UserId == userId)
             .Include(s => s.Reminders)
@@ -52,6 +52,8 @@ public abstract class CreateReminderEndpoint : IEndpoint
 
         if (subscription is null)
         {
+            logger.LogWarning("Subscription {SubId} not found by user {UserId}.", request.SubscriptionId, userId);
+
             return Results.Problem(
                 statusCode: 404,
                 title: "Subscription not found",
@@ -68,7 +70,12 @@ public abstract class CreateReminderEndpoint : IEndpoint
             await db.SaveChangesAsync(cancellationToken);
 
             var newRule = subscription.Reminders.Last();
+            var occurrenceScheduledAt = newRule.ReminderOccurrences.Last().ScheduledAt;
 
+            logger.LogInformation("User {UserId} successfully created reminder {ReminderId} for subscription {SubId}." +
+                                  "New reminder occurrence was set to {ScheduledAt}",
+                userId, newRule.Id, request.SubscriptionId, occurrenceScheduledAt);
+            
             return Results.Ok(new CreateReminderResponse
             (
                 newRule.Id,
@@ -79,6 +86,9 @@ public abstract class CreateReminderEndpoint : IEndpoint
         }
         catch (TimeZoneNotFoundException)
         {
+            logger.LogWarning("Invalid timezone {Timezone} while user {UserId} trying to create a reminder for subscription {SubId}.",
+                request.Timezone, userId, request.SubscriptionId);
+            
             return Results.Problem(
                 statusCode: 400,
                 title: "Invalid timezone",

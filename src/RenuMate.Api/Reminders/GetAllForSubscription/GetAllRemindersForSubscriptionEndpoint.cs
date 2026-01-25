@@ -25,6 +25,7 @@ public abstract class GetAllRemindersForSubscriptionEndpoint
         [FromQuery] Guid subscriptionId, 
         RenuMateDbContext db,
         IUserContext userContext,
+        ILogger<GetAllRemindersForSubscriptionEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
@@ -34,6 +35,8 @@ public abstract class GetAllRemindersForSubscriptionEndpoint
 
         if (!subscriptionExists)
         {
+            logger.LogWarning("Subscription {SubId} not found by user {UserId}.", subscriptionId, userId);
+            
             return Results.Problem(
                 statusCode: 404,
                 title: "Subscription not found",
@@ -45,6 +48,9 @@ public abstract class GetAllRemindersForSubscriptionEndpoint
             .Where(r => r.SubscriptionId == subscriptionId)
             .Select(ReminderMapper.ProjectToDto)
             .ToListAsync(cancellationToken);
+        
+        logger.LogWarning("User {UserId} successfully retrieved {Count} reminders for subscription {SubId}.",
+            userId, reminders.Count, subscriptionId);
 
         return Results.Ok(reminders);
     }

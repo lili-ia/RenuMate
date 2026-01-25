@@ -24,7 +24,7 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
     private const string Message = "If your account exists and is deactivated, a reactivation email was sent."; 
     
     private static async Task<IResult> Handle(
-        [FromBody] ReactivateUserRequest userRequest, 
+        [FromBody] ReactivateUserRequest request, 
         RenuMateDbContext db,
         ITokenService tokenService,
         IConfiguration configuration,
@@ -35,7 +35,7 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
         TimeProvider timeProvider,
         CancellationToken cancellationToken = default)
     {
-        var validation = await validator.ValidateAsync(userRequest, cancellationToken);
+        var validation = await validator.ValidateAsync(request, cancellationToken);
         
         if (!validation.IsValid)
         {
@@ -44,10 +44,13 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
         
         var user = await db.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Email == userRequest.Email, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
 
         if (user is null || user.IsActive)
         {
+            logger.LogInformation("User with email {Email} requested to reactivate their account but {Reason}.",
+                request.Email, user is null ? "was not found" : "is already active");
+            
             return Results.Ok(new MessageResponse(Message));
         }
 
@@ -80,6 +83,8 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
             await db.PendingEmails.AddAsync(pendingEmail, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
+        
+        logger.LogInformation("User with email {Email} successfully requested to reactivate their account.", user.Email);
 
         return Results.Ok(new MessageResponse(Message));
     }

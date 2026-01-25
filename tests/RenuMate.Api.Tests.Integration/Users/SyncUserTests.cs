@@ -61,10 +61,6 @@ public class SyncUserTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var response = await client.PostAsync("/api/users/sync-user", null);
     
         // Assert
-        factory.Auth0ServiceMock.Verify(
-            x => x.UpdateUserInternalIdAsync(Sub, It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
-            Times.Once);
-        
         response.EnsureSuccessStatusCode();
         
         using var scope = factory.Services.CreateScope();
@@ -75,7 +71,7 @@ public class SyncUserTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
     
     [Fact]
-    public async Task Handle_NewUser_Auth0Fails_ShouldNotCreateUser()
+    public async Task Handle_NewUser_Auth0Fails_ShouldNotCreateUserAndReturnBadGateway()
     {
         // Arrange
         await factory.ResetDatabaseAsync();
@@ -144,38 +140,7 @@ public class SyncUserTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
     
     [Fact]
-    public async Task Handle_Auth0ServiceFails_ShouldReturn502AndMarkAsNotSynced()
-    {
-        // Arrange
-        await factory.ResetDatabaseAsync();
-        factory.Auth0ServiceMock.Invocations.Clear();
-        factory.Auth0ServiceMock
-            .Setup(x => x.UpdateUserInternalIdAsync(
-                It.IsAny<string>(), 
-                It.IsAny<Guid>(), 
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ErrorApiException("Auth0 API Down"));
-
-        await factory.CreateExampleUserAsync(_userId, Email, Sub, Name);
-        var client = factory.GetAuthenticatedClient(Sub, "new@example.com");
-    
-        // Act
-        var response = await client.PostAsync("/api/users/sync-user", null);
-    
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
-        using var scope = factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<RenuMateDbContext>();
-        var user = await db.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Auth0Id == Sub);
-        user.Should().NotBeNull();
-        user.Email.Should().Be(Email);
-        user.IsMetadataSynced.Should().BeFalse();
-    }
-    
-    [Fact]
-    public async Task Handle_MissingRequiredClaims_ShouldReturnBadRequest()
+    public async Task Handle_MissingRequiredClaims_ShouldReturnUnauthorized()
     {
         // Arrange
         var client = factory.CreateClient();
@@ -185,6 +150,6 @@ public class SyncUserTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var response = await client.PostAsync("/api/users/sync-user", null);
     
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

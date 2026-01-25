@@ -83,6 +83,8 @@ public class ReminderService(
                         lastError: emailSenderResponse.ErrorMessage);
             
                     await db.PendingEmails.AddAsync(pendingEmail, ct);
+                    
+                    logger.LogWarning("Couldn't send a reminder email {@Email}.", pendingEmail);
                 }
             }
             catch (Exception ex)

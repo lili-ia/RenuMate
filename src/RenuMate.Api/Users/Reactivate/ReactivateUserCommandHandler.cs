@@ -7,7 +7,11 @@ using RenuMate.Api.Services.Contracts;
 
 namespace RenuMate.Api.Users.Reactivate;
 
-public class ReactivateUserCommandHandler(ITokenService tokenService, RenuMateDbContext db, IAuth0Service auth0Service) 
+public class ReactivateUserCommandHandler(
+    ITokenService tokenService, 
+    RenuMateDbContext db, 
+    IAuth0Service auth0Service,
+    ILogger<ReactivateUserCommandHandler> logger) 
     : IRequestHandler<ReactivateUserCommand, IResult>
 {
     public async Task<IResult> Handle(ReactivateUserCommand request, CancellationToken cancellationToken)
@@ -38,6 +42,8 @@ public class ReactivateUserCommandHandler(ITokenService tokenService, RenuMateDb
 
         if (user is null)
         {
+            logger.LogWarning("User {UserId} was authorized but not found in database.", userId);
+            
             return Results.Problem(
                 statusCode: 400,
                 title: "Invalid token",
@@ -49,6 +55,8 @@ public class ReactivateUserCommandHandler(ITokenService tokenService, RenuMateDb
         await auth0Service.SetUserBlockStatusAsync(user.Auth0Id, blocked: false, cancellationToken);
         
         await db.SaveChangesAsync(cancellationToken);
+        
+        logger.LogInformation("User {UserId} successfully activated their account, data was synced with Auth0.", userId);
 
         var accessToken = tokenService.CreateToken(
             userId: userId.ToString(), 

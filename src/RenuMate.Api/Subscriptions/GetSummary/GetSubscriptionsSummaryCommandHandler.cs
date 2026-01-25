@@ -9,7 +9,11 @@ using RenuMate.Api.Services.Contracts;
 
 namespace RenuMate.Api.Subscriptions.GetSummary;
 
-public class GetSubscriptionsSummaryCommandHandler(RenuMateDbContext db, IMemoryCache cache, ICurrencyService currencyService) 
+public class GetSubscriptionsSummaryCommandHandler(
+    RenuMateDbContext db, 
+    IMemoryCache cache, 
+    ICurrencyService currencyService,
+    ILogger<GetSubscriptionsSummaryCommandHandler> logger) 
     : IRequestHandler<GetSubscriptionsSummaryCommand, IResult>
 {
     public async Task<IResult> Handle(GetSubscriptionsSummaryCommand request, CancellationToken cancellationToken)
@@ -24,6 +28,9 @@ public class GetSubscriptionsSummaryCommandHandler(RenuMateDbContext db, IMemory
         
         if (cache.TryGetValue(cacheKey, out SubscriptionSummaryDto? summary))
         {
+            logger.LogInformation("User {UserId} successfully retrieved cached summary for currency {Currency} and period {Period}.",
+                request.UserId, request.Currency, request.Period);
+            
             return Results.Ok(summary);
         }
         
@@ -49,6 +56,10 @@ public class GetSubscriptionsSummaryCommandHandler(RenuMateDbContext db, IMemory
             summary = new SubscriptionSummaryDto(0, 0, 0, 0);
             cache.Set(cacheKey, summary, cacheOptions);
             
+            logger.LogInformation("User {UserId} successfully retrieved summary for currency {Currency} and period {Period}." +
+                                  "Result successfully cached for next 24 hrs.",
+                request.UserId, request.Currency, request.Period);
+            
             return Results.Ok(summary);
         }
 
@@ -56,6 +67,10 @@ public class GetSubscriptionsSummaryCommandHandler(RenuMateDbContext db, IMemory
         
         if (rates is null)
         {
+            logger.LogWarning("User {UserId} couldn't retrieve summary for currency {Currency} and period {Period}, " +
+                            "because CurrencyService is temporarily down.",
+                request.UserId, request.Currency, request.Period);
+            
             return Results.Problem(
                 statusCode: StatusCodes.Status503ServiceUnavailable,
                 title: "Currency service unavailable"
@@ -101,6 +116,10 @@ public class GetSubscriptionsSummaryCommandHandler(RenuMateDbContext db, IMemory
         );
         
         cache.Set(cacheKey, summary, cacheOptions);
+        
+        logger.LogInformation("User {UserId} successfully retrieved summary for currency {Currency} and period {Period}. " +
+                              "Result successfully cached for next 24 hrs.",
+            request.UserId, request.Currency, request.Period);
         
         return Results.Ok(summary);
     }

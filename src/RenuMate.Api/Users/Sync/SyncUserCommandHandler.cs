@@ -15,8 +15,11 @@ public class SyncUserCommandHandler(RenuMateDbContext db, IAuth0Service auth0Ser
 
         if (user is not null)
         {
-            user.UpdateProfile(request.Email, request.Name);
-            await EnsureMetadataSynced(user, auth0Service, db, cancellationToken);
+            user.UpdateProfile(request.Email, request.Name, request.IsVerified);
+            await db.SaveChangesAsync(cancellationToken);
+            
+            logger.LogInformation("Existing user {UserId} with auth0 id {Auth0Id} was successfully synced with database.", 
+                user.Id, request.Auth0Id);
             
             return Results.Ok(new SyncUserResponse ("User successfully synced.", user.Id));
         }
@@ -29,40 +32,15 @@ public class SyncUserCommandHandler(RenuMateDbContext db, IAuth0Service auth0Ser
         }
         
         db.Users.Add(newUser);
-        await EnsureMetadataSynced(newUser, auth0Service, db, cancellationToken);
+        
+        await auth0Service.UpdateUserInternalIdAsync(newUser.Auth0Id, newUser.Id, cancellationToken);
+
+        newUser.MarkMetadataAsSynced();
+        await db.SaveChangesAsync(cancellationToken);
+        
+        logger.LogInformation("New user {UserId} with auth0 id {AuthId} successfully created in database and synced with Auth0.", 
+            newUser.Id, request.Auth0Id);
         
         return Results.Ok(new SyncUserResponse ("User created", newUser.Id));
     }
-    
-    private static async Task EnsureMetadataSynced(
-        User user,
-        IAuth0Service auth0Service,
-        RenuMateDbContext db,
-        CancellationToken ct)
-    {
-        if (user.IsMetadataSynced)
-        {
-            return;
-        }
-
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
-        {
-            await auth0Service.UpdateUserInternalIdAsync(user.Auth0Id, user.Id, ct);
-
-            user.MarkMetadataAsSynced();
-
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-        catch
-        {
-            await tx.RollbackAsync(ct);
-            await db.Users.ExecuteUpdateAsync(setters
-                => setters.SetProperty(u => u.IsMetadataSynced, false), ct);
-            throw;
-        }
-    }
-
 }

@@ -26,6 +26,7 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
         [FromRoute] Guid id,
         IUserContext userContext,
         RenuMateDbContext db,
+        ILogger<GetSubscriptionDetailsByIdEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
@@ -38,6 +39,8 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
 
         if (subscription is null)
         {
+            logger.LogInformation("Subscription {SubId} not found by user {UserId}.", id, userId);
+            
             return Results.Problem(
                 statusCode: 404,
                 title: "Subscription not found",
@@ -45,6 +48,8 @@ public abstract class GetSubscriptionDetailsByIdEndpoint : IEndpoint
             );
         }
 
+        logger.LogInformation("User {UserId} successfully retrieved subscription {SubId}.", userId, id);
+        
         return Results.Ok(subscription);
     }
 }

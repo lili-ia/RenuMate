@@ -22,8 +22,7 @@ public class SubscriptionService(RenuMateDbContext db, ILogger<SubscriptionServi
 
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation(
-            "Successfully updated {SubscriptionCount} subscriptions renewal date.", 
+        logger.LogInformation("Successfully updated {SubscriptionCount} subscriptions' renewal date.", 
             subscriptions.Count);
     }
 }

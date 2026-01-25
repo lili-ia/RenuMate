@@ -33,10 +33,12 @@ public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
         var userId = userContext.UserId;
 
         var subscription = await db.Subscriptions
-            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userContext.UserId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId, cancellationToken);
 
         if (subscription is null)
         {
+            logger.LogInformation("Subscription {SubId} not found by user {UserId}.", id, userId);
+            
             return Results.Problem(
                 statusCode: 404,
                 title: "Subscription not found",
@@ -46,6 +48,9 @@ public abstract class SetSubscriptionMuteStatusEndpoint : IEndpoint
 
         subscription.SetMuteStatus(request.IsMuted);
         await db.SaveChangesAsync(cancellationToken);
+        
+        logger.LogInformation("User {UserId} successfully set subscription's {SubId} mute status to {Status}.",
+            userId, id, request.IsMuted ? "true" : "false");
 
         return Results.NoContent();
     }

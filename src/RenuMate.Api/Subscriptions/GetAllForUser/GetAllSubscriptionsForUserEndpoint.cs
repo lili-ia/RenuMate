@@ -23,6 +23,7 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
     private static async Task<IResult> Handle(
         IUserContext userContext,
         RenuMateDbContext db,
+        ILogger<GetAllSubscriptionsForUserEndpoint> logger,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
@@ -54,6 +55,8 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
             TotalCount: totalCount,
             TotalPages: (int)Math.Ceiling(totalCount / (double)pageSize)
         );
+        
+        logger.LogInformation("User {UserId} successfully retrieved {Count} subscriptions.", userId, subscriptions.Count);
 
         return Results.Ok(result);
     }

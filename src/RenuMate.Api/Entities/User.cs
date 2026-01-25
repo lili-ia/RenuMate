@@ -42,13 +42,6 @@ public class User : BaseEntity
         EmailConfirmed = true;
     }
 
-    public void UpdateMetadata(string name, bool emailConfirmed)
-    {
-        Name = name;
-        EmailConfirmed = emailConfirmed;
-        IsMetadataSynced = true;
-    }
-
     public void Deactivate()
     {
         if (!IsActive)
@@ -75,10 +68,11 @@ public class User : BaseEntity
         IsActive = true;
     }
     
-    public bool UpdateProfile(string email, string name)
+    public bool UpdateProfile(string email, string name, bool emailVerified)
     {
         if (Email == email && Name == name)
         {
+            EmailConfirmed = emailVerified;
             return false;
         }
 

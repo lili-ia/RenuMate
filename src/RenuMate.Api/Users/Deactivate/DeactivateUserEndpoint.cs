@@ -36,6 +36,8 @@ public abstract class DeactivateUserEndpoint : IEndpoint
 
         if (user is null)
         {
+            logger.LogWarning("User {UserId} was authorized but not found in database.", userId);
+            
             return Results.Problem(
                 statusCode: 404,
                 title: "User not found",
@@ -45,6 +47,8 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         
         if (!user.IsActive)
         {
+            logger.LogWarning("User {UserId} attempted to deactivate their account but is already inactive.", userId);
+            
             return Results.Ok(new MessageResponse("User account is already deactivated."));
         }
         
@@ -52,7 +56,8 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         await auth0Service.SetUserBlockStatusAsync(user.Auth0Id, blocked: true, cancellationToken);
         
         await db.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("User {UserId} deactivated their account.", userId);
+        
+        logger.LogInformation("User {UserId} successfully deactivated their account, data was synced with Auth0.", userId);
 
         return Results.Ok(new MessageResponse("Your account was successfully deactivated."));
     }

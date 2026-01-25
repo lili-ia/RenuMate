@@ -1,3 +1,4 @@
+using System.ComponentModel.Design.Serialization;
 using System.Net.Mime;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -23,6 +24,7 @@ public abstract class GetUserInfoEndpoint : IEndpoint
         RenuMateDbContext db,
         IUserContext userContext,
         IMemoryCache cache,
+        ILogger<GetUserInfoEndpoint> logger,
         CancellationToken cancellationToken = default)
     {
         var userId = userContext.UserId;
@@ -31,6 +33,8 @@ public abstract class GetUserInfoEndpoint : IEndpoint
 
         if (cache.TryGetValue(cacheKey, out UserInfoResponse? info))
         {
+            logger.LogInformation("User {UserId} info was successfully retrieved from cache.", userId);
+            
             return Results.Ok(info);
         }
 
@@ -49,6 +53,8 @@ public abstract class GetUserInfoEndpoint : IEndpoint
 
         if (info is null)
         {
+            logger.LogWarning("User {UserId} was authorized but not found in database.", userId);
+            
             return Results.Problem(
                 statusCode: StatusCodes.Status404NotFound,
                 title: "User not found",
@@ -57,6 +63,8 @@ public abstract class GetUserInfoEndpoint : IEndpoint
         }
 
         cache.Set(cacheKey, info, TimeSpan.FromHours(24));
+        
+        logger.LogInformation("User {UserId} info was successfully retrieved. Result successfully cached for next 24 hrs.", userId);
         
         return Results.Ok(info);
     }

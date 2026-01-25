@@ -37,12 +37,16 @@ public abstract class DeleteSubscriptionEndpoint : IEndpoint
 
         if (rows == 0)
         {
+            logger.LogInformation("Subscription {SubId} not found by user {UserId}.", id, userId);
+            
             return Results.Problem(
                 statusCode: 404,
                 title: "Subscription not found",
                 detail: "No subscription exists with the specified ID for the current user."
             );
         }
+        
+        logger.LogInformation("User {UserId} successfully deleted subscription {SubId}", userId, id);
 
         return Results.NoContent();
     }

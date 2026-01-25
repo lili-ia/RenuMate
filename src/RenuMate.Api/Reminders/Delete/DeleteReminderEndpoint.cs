@@ -38,6 +38,8 @@ public abstract class DeleteReminderEndpoint : IEndpoint
 
         if (rule is null)
         {
+            logger.LogInformation("Reminder rule {RuleId} not found by user {UserId}.", id, userId);
+            
             return Results.Problem(
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Reminder not found",
@@ -46,6 +48,8 @@ public abstract class DeleteReminderEndpoint : IEndpoint
         
         db.ReminderRules.Remove(rule);
         await db.SaveChangesAsync(cancellationToken);
+        
+        logger.LogInformation("User {UserId} successfully deleted reminder rule {ReminderId}.", userId, id);
 
         return Results.NoContent();
     }
