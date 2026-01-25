@@ -1,11 +1,8 @@
 using System.Net.Mime;
-using System.Security.Claims;
 using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using RenuMate.Api.Common;
-using RenuMate.Api.Persistence;
-using RenuMate.Api.Services.Contracts;
 using RenuMate.Api.Extensions;
 
 namespace RenuMate.Api.Users.Reactivate;
@@ -26,9 +23,7 @@ public abstract class ReactivateUserEndpoint : IEndpoint
     private static async Task<IResult> Handle(
         [FromQuery] string token,
         IValidator<string> validator,
-        ITokenService tokenService,
-        RenuMateDbContext db,
-        ILogger<ReactivateUserEndpoint> logger,
+        IMediator mediator,
         CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(token, cancellationToken);
@@ -38,53 +33,9 @@ public abstract class ReactivateUserEndpoint : IEndpoint
             return validation.ToFailureResult();
         }
 
-        var principal = tokenService.ValidateToken(token, expectedPurpose: "Reactivate");
-        
-        if (principal == null)
-        {
-            return Results.Problem(
-                statusCode: 400,
-                title: "Invalid token",
-                detail: "The reactivation token is invalid or has expired."
-            );
-        }
+        var command = new ReactivateUserCommand(token);
+        var result = await mediator.Send(command, cancellationToken);
 
-        var stringUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        
-        if (!Guid.TryParse(stringUserId, out var userId))
-        {
-            return Results.Problem(
-                statusCode: 400,
-                title: "Invalid token",
-                detail: "The reactivation token is invalid or has expired."
-            );
-        }
-
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
-
-        if (user is null)
-        {
-            return Results.Problem(
-                statusCode: 400,
-                title: "Invalid token",
-                detail: "The reactivation token is invalid or has expired."
-            );
-        }
-        
-        user.Activate();
-        
-        await db.SaveChangesAsync(cancellationToken);
-
-        var accessToken = tokenService.CreateToken(
-            userId: userId.ToString(), 
-            email: user.Email, 
-            purpose: "Reactivate",
-            emailConfirmed: "true",
-            expiresAt: DateTime.UtcNow.AddHours(24));
-        
-        return TypedResults.Ok(new TokenResponse
-        (
-            Token: accessToken
-        ));
+        return result;
     }
 }

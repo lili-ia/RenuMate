@@ -85,6 +85,7 @@ public class CreateSubscriptionTests(ApiFactory factory) : IClassFixture<ApiFact
     [Fact]
     public async Task Handle_DuplicateName_ShouldReturnForbidden()
     {
+        // Arrange
         await factory.ResetDatabaseAsync();
         await factory.CreateExampleUserAsync(_userId);
         var client = factory.GetAuthenticatedClient(userId: _userId.ToString());
@@ -92,14 +93,34 @@ public class CreateSubscriptionTests(ApiFactory factory) : IClassFixture<ApiFact
         var request = CreateValidRequest("Netflix");
 
         await client.PostAsJsonAsync("/api/subscriptions", request);
+        
+        // Act
         var response = await client.PostAsJsonAsync("/api/subscriptions", request);
 
+        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RenuMateDbContext>();
 
         (await db.Subscriptions.CountAsync()).Should().Be(1);
+    }
+    
+    [Fact]
+    public async Task Handle_Unauthenticated_ReturnsUnauthorized()
+    {
+        // Arrange
+        await factory.ResetDatabaseAsync();
+    
+        var client = factory.CreateDefaultClient();
+        client.DefaultRequestHeaders.Clear();
+        var request = CreateValidRequest();
+    
+        // Act
+        var response = await client.PostAsJsonAsync("/api/subscriptions", request);
+    
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     private static CreateSubscriptionRequest CreateValidRequest(

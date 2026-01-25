@@ -6,7 +6,7 @@ using RenuMate.Api.Services.Contracts;
 
 namespace RenuMate.Api.Users.Sync;
 
-public class SyncUserHandler(RenuMateDbContext db, IAuth0Service auth0Service, ILogger<SyncUserHandler> logger) 
+public class SyncUserCommandHandler(RenuMateDbContext db, IAuth0Service auth0Service, ILogger<SyncUserCommandHandler> logger) 
     : IRequestHandler<SyncUserCommand, IResult>
 {
     public async Task<IResult> Handle(SyncUserCommand request, CancellationToken cancellationToken)

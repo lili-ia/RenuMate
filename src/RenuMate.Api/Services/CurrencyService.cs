@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using Polly;
 using RenuMate.Api.Enums;
 using RenuMate.Api.Services.Contracts;
 
@@ -24,9 +25,21 @@ public class CurrencyService(
 
         var url = $"{BaseUrl}/{toCode}.json";
     
-        try 
+        try
         {
-            var root = await httpClient.GetFromJsonAsync<JsonElement>(url, ct);
+            var policy = Policy
+                .Handle<HttpRequestException>()
+                .WaitAndRetryAsync(
+                    retryCount: 3,
+                    sleepDurationProvider: attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
+                    onRetry: (ex, timespan, attempt, context) =>
+                    {
+                        logger.LogWarning(ex, "Retry {Attempt} after {Delay}s due to HttpRequestException", 
+                            attempt, timespan.TotalSeconds);
+                    });
+
+            var root = await policy.ExecuteAsync(async () 
+                => await httpClient.GetFromJsonAsync<JsonElement>(url, ct)); 
 
             if (root.TryGetProperty(toCode, out var ratesElement))
             {
@@ -48,10 +61,15 @@ public class CurrencyService(
                 return mappedRates;
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            logger.LogError(ex, "Failed to fetch rates from {Url}", url);
+            logger.LogWarning(ex, "Currency API unreachable: {Url}", url);
             return null;
+        }
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "Failed to parse JSON from {Url}", url);
+            throw; 
         }
 
         return null;
