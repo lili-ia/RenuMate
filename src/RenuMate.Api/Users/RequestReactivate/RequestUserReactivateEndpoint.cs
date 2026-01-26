@@ -1,12 +1,9 @@
 using System.Net.Mime;
-using FluentValidation;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RenuMate.Api.Common;
 using RenuMate.Api.Entities;
 using RenuMate.Api.Persistence;
 using RenuMate.Api.Services.Contracts;
-using RenuMate.Api.Extensions;
 
 namespace RenuMate.Api.Users.RequestReactivate;
 
@@ -14,6 +11,7 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPost("api/users/reactivate-request", Handle)
+        .RequireAuthorization()
         .WithSummary("Request user account reactivation.")
         .WithDescription("If the account exists and is deactivated, a reactivation email is sent with a verification link.")
         .WithTags("Users")
@@ -24,34 +22,42 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
     private const string Message = "If your account exists and is deactivated, a reactivation email was sent."; 
     
     private static async Task<IResult> Handle(
-        [FromBody] ReactivateUserRequest request, 
+        IUserContext userContext,
         RenuMateDbContext db,
         ITokenService tokenService,
         IConfiguration configuration,
         IEmailSender emailSender,
         IEmailTemplateService emailTemplateService,
         ILogger<RequestUserReactivateEndpoint> logger,
-        IValidator<ReactivateUserRequest> validator,
         TimeProvider timeProvider,
         CancellationToken cancellationToken = default)
     {
-        var validation = await validator.ValidateAsync(request, cancellationToken);
-        
-        if (!validation.IsValid)
-        {
-            return validation.ToFailureResult();
-        }
+        var userId = userContext.UserId;
         
         var user = await db.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-        if (user is null || user.IsActive)
+        if (user is null)
         {
-            logger.LogInformation("User with email {Email} requested to reactivate their account but {Reason}.",
-                request.Email, user is null ? "was not found" : "is already active");
+            logger.LogWarning("User {UserId} was authorized but not found in database.", userId);
             
-            return Results.Ok(new MessageResponse(Message));
+            return Results.Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "User not found",
+                detail: "The authenticated user could not be found in the database."
+            );
+        }
+
+        if (user.IsActive)
+        {
+            logger.LogWarning("User {UserId} requested an account reactivation but is already active.", userId);
+            
+            return Results.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "User already active",
+                detail: "The authenticated user is already active."
+            );
         }
 
         var frontendUrl = configuration["App:FrontendUrl"];
@@ -82,6 +88,13 @@ public abstract class RequestUserReactivateEndpoint : IEndpoint
             
             await db.PendingEmails.AddAsync(pendingEmail, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
+            
+            return Results.Problem(
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Reactivation pending",
+                detail: "We couldn't send the activation link. We will try to send it automatically soon. " +
+                        "Please check your email in a few minutes."
+            );
         }
         
         logger.LogInformation("User with email {Email} successfully requested to reactivate their account.", user.Email);

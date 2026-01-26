@@ -53,7 +53,7 @@ public abstract class DeactivateUserEndpoint : IEndpoint
         }
         
         user.Deactivate();
-        await auth0Service.SetUserBlockStatusAsync(user.Auth0Id, blocked: true, cancellationToken);
+        await auth0Service.SetUserActiveStatusAsync(user.Auth0Id, isActive: false, cancellationToken);
         
         await db.SaveChangesAsync(cancellationToken);
         

@@ -146,7 +146,8 @@ Log.Logger = log;
 
 builder.Services.AddSerilog();
 builder.Services.AddSingleton<IEmailTemplateService, EmailTemplateService>();
-builder.Services.Configure<EmailSenderOptions>(builder.Configuration.GetSection("EmailSender"));
+builder.Services.Configure<EmailSenderOptions>(
+    builder.Configuration.GetSection("EmailSender"));
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IUserContext, UserContext>();
 builder.Services.AddTransient<ITokenService, TokenService>();

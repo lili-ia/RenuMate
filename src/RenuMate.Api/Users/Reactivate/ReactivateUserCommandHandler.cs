@@ -52,7 +52,7 @@ public class ReactivateUserCommandHandler(
         }
         
         user.Activate();
-        await auth0Service.SetUserBlockStatusAsync(user.Auth0Id, blocked: false, cancellationToken);
+        await auth0Service.SetUserActiveStatusAsync(user.Auth0Id, isActive: true, cancellationToken);
         
         await db.SaveChangesAsync(cancellationToken);
         

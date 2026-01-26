@@ -71,7 +71,7 @@ public class UserTests
         var user = User.Create("auth0|1", "old@test.com", "Old Name");
 
         // Act
-        var result = user.UpdateProfile("new@test.com", "New Name");
+        var result = user.UpdateProfile("new@test.com", "New Name", false);
 
         // Assert
         result.Should().BeTrue();
@@ -87,7 +87,7 @@ public class UserTests
         user.MarkMetadataAsSynced();
 
         // Act
-        var result = user.UpdateProfile("test@test.com", "Name");
+        var result = user.UpdateProfile("test@test.com", "Name", false);
 
         // Assert
         result.Should().BeFalse();

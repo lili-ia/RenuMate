@@ -24,7 +24,7 @@ public class Auth0Service(
 
             var updateRequest = new UserUpdateRequest
             {
-                AppMetadata = new { internal_id = internalId }
+                AppMetadata = new { internal_id = internalId.ToString() }
             };
 
             await managementClient.Users.UpdateAsync(auth0Id, updateRequest, ct);
@@ -46,7 +46,7 @@ public class Auth0Service(
         }
     }
 
-    public async Task SetUserBlockStatusAsync(string auth0Id, bool blocked, CancellationToken ct = default)
+    public async Task SetUserActiveStatusAsync(string auth0Id, bool isActive, CancellationToken ct = default)
     {
         try
         {
@@ -55,7 +55,7 @@ public class Auth0Service(
 
             var updateRequest = new UserUpdateRequest
             {
-                AppMetadata = new { blocked = blocked }
+                AppMetadata = new { is_active = isActive }
             };
 
             await managementClient.Users.UpdateAsync(auth0Id, updateRequest, ct);

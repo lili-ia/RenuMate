@@ -21,19 +21,19 @@ public abstract class ReactivateUserEndpoint : IEndpoint
         .Produces(StatusCodes.Status500InternalServerError);
 
     private static async Task<IResult> Handle(
-        [FromQuery] string token,
-        IValidator<string> validator,
+        [FromBody] ReactivateUserRequest request,
+        IValidator<ReactivateUserRequest> validator,
         IMediator mediator,
         CancellationToken cancellationToken = default)
     {
-        var validation = await validator.ValidateAsync(token, cancellationToken);
+        var validation = await validator.ValidateAsync(request, cancellationToken);
         
         if (!validation.IsValid)
         {
             return validation.ToFailureResult();
         }
 
-        var command = new ReactivateUserCommand(token);
+        var command = new ReactivateUserCommand(request.Token);
         var result = await mediator.Send(command, cancellationToken);
 
         return result;

@@ -1,52 +1,43 @@
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
+using MimeKit;
 using RenuMate.Api.Services.Contracts;
-using SendGrid;
-using SendGrid.Helpers.Errors.Model;
-using SendGrid.Helpers.Mail;
 
 namespace RenuMate.Api.Services.Email;
 
-public class EmailSender(IOptions<EmailSenderOptions> options, ILogger<EmailSender> logger) : IEmailSender
+public class EmailSender(IOptions<EmailSenderOptions> options, ILogger<EmailSender> logger) 
+    : IEmailSender
 {
     private readonly EmailSenderOptions _options = options.Value;
 
     public async Task<EmailSenderResponse> SendEmailAsync(string to, string subject, string body, CancellationToken ct)
     {
-        var client = new SendGridClient(new SendGridClientOptions
-        {
-            ApiKey = _options.ApiKey,
-            HttpErrorAsException = true
-        });
-
-        var from = new EmailAddress(_options.FromEmail, _options.FromUser);
-
-        var receiver = new EmailAddress(to);
-        var msg = MailHelper.CreateSingleEmail(from, receiver, subject,"", body);
-
-        var trackingSettings = new TrackingSettings
-        {
-            ClickTracking = new ClickTracking
-            {
-                Enable = false,
-                EnableText = false
-            }
-        };
+        var message = new MimeMessage();
         
-        msg.TrackingSettings = trackingSettings;
+        message.From.Add(new MailboxAddress(_options.FromUser, _options.FromEmail));
+        message.To.Add(new MailboxAddress("", to));
+        message.Subject = subject;
+
+        var bodyBuilder = new BodyBuilder { HtmlBody = body };
+        message.Body = bodyBuilder.ToMessageBody();
+
+        using var client = new SmtpClient();
 
         try
         {
-            await client.SendEmailAsync(msg, ct);
+            await client.ConnectAsync(_options.Host, _options.Port, false, ct);
+            await client.AuthenticateAsync(_options.UserName, _options.Password, ct);
+
+            await client.SendAsync(message, ct);
+            await client.DisconnectAsync(true, ct);
             
             return new EmailSenderResponse(IsSuccess: true, ErrorMessage: null);
         }
         catch (Exception ex)
         {
-            var errorResponse = JsonConvert.DeserializeObject<SendGridErrorResponse>(ex.Message);
-            logger.LogError("SendGrid error: {Error}", errorResponse);
-            
-            return new EmailSenderResponse(IsSuccess: false, ErrorMessage: errorResponse?.ToString());
+            logger.LogError(ex, "SMTP error occurred while sending email to {To}", to);
+            return new EmailSenderResponse(IsSuccess: false, ErrorMessage: ex.Message);
         }
     }
 }

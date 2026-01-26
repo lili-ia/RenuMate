@@ -72,8 +72,8 @@ public class GetSubscriptionsSummaryCommandHandler(
                 request.UserId, request.Currency, request.Period);
             
             return Results.Problem(
-                statusCode: StatusCodes.Status503ServiceUnavailable,
-                title: "Currency service unavailable"
+                statusCode: StatusCodes.Status504GatewayTimeout,
+                title: "Currency service Gateway Timeout"
             );
         }
         

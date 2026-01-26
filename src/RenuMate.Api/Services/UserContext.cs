@@ -13,11 +13,11 @@ public class UserContext(IHttpContextAccessor httpContextAccessor, IConfiguratio
 
             var id = user?.GetUserInfo(config).UserId;
 
-            if (id is null)
+            if (id is null || id.Value == Guid.Empty)
             {
                 throw new UnauthorizedAccessException("User context is missing or invalid.");
             }
-
+            
             return id.Value;
         }
     }

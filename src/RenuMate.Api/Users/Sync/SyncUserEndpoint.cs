@@ -18,7 +18,7 @@ public class SyncUserEndpoint : IEndpoint
         .ProducesProblem(StatusCodes.Status409Conflict)
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .ProducesProblem(StatusCodes.Status500InternalServerError)
-        .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        .ProducesProblem(StatusCodes.Status502BadGateway);
     
     private static async Task<IResult> Handle(
         ClaimsPrincipal claimsUser,

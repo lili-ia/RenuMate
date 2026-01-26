@@ -75,9 +75,9 @@ public class ReactivateUserEndpointTests(ApiFactory factory) : IClassFixture<Api
             .Returns(claims);
 
         factory.Auth0ServiceMock
-            .Setup(x => x.SetUserBlockStatusAsync(
+            .Setup(x => x.SetUserActiveStatusAsync(
                 It.IsAny<string>(), 
-                false, 
+                true, 
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
@@ -106,9 +106,9 @@ public class ReactivateUserEndpointTests(ApiFactory factory) : IClassFixture<Api
         updatedUser!.IsActive.Should().BeTrue();
 
         factory.Auth0ServiceMock.Verify(
-            x => x.SetUserBlockStatusAsync(
+            x => x.SetUserActiveStatusAsync(
                 It.IsAny<string>(),
-                false, 
+                true, 
                 It.IsAny<CancellationToken>()), Times.Once);
     }
 }
