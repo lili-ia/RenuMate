@@ -16,7 +16,9 @@ export interface Subscription {
   renewalDate: string
   daysLeft: number
   isMuted: boolean
-  notes?: string
+  cancelLink?: string
+  picLink?: string
+  note?: string
   reminders?: Reminder[]
 }
 

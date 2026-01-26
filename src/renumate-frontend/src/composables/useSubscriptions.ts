@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import api from '@/api'
-import { formatDate } from '@/utils/formatters.ts'
+import { formatForInput } from '@/utils/formatters.ts'
 import type { PaginatedResponse, Subscription } from '@/types'
 import { toast } from 'vue3-toastify'
 
@@ -11,30 +11,38 @@ interface SubscriptionForm {
   currency: string
   plan: string
   customPeriodInDays: number | null
+  trialPeriodInDays: number | null
   startDate: string
-  notes: string
+  note: string
+  cancelLink: string
+  picLink: string
   isMuted: boolean
 }
 
 export function useSubscriptions() {
-  const loading = ref(true)
-  const summaryLoading = ref(true)
+  const loading = ref<Boolean>(true)
+  const summaryLoading = ref<Boolean>(true)
+
+  const isSubmitting = ref<Boolean>(false)
 
   const subscriptions = ref<Subscription[]>([])
-  const totalCost = ref<number>(0)
   const selectedCurrency = ref<string>('USD')
   const selectedPeriod = ref<string>('monthly')
   const selectedSubscription = ref<Subscription | null>(null)
-  const showSubscriptionModal = ref(false)
+  const showSubscriptionModal = ref<Boolean>(false)
   const editingSubscription = ref<Subscription | null>(null)
-  const isSubmitting = ref(false)
+  const showDeleteConfirm = ref<Boolean>(false)
+  const subToDelete = ref<{ id: string; name: string } | null>(null)
+  
+  const currentPage = ref<number>(1)
+  const pageSize = ref<number>(10)
+  const totalCount = ref<number>(0)
+  const totalPages = ref<number>(0)
 
-  const currentPage = ref(1)
-  const pageSize = ref(10)
-  const totalCount = ref(0)
-  const totalPages = ref(0)
-  const activeSubscriptionsCount = ref(0)
-  const totalRemindersCount = ref(0)
+  const totalCost = ref<number>(0)
+  const activeSubscriptionsCount = ref<number>(0)
+  const activeRemindersCount = ref<number>(0)
+  const projectedCost = ref<number>(0)
 
   const popularCurrencies = [
     { code: 'USD', name: 'US Dollar', symbol: '$' },
@@ -59,14 +67,22 @@ export function useSubscriptions() {
     { code: 'ZAR', name: 'South African Rand', symbol: 'R' },
   ]
 
+  const openDeleteModal = (sub: any) => {
+    subToDelete.value = { id: sub.id, name: sub.name }
+    showDeleteConfirm.value = true
+  }
+
   const formData = ref<SubscriptionForm>({
     name: '',
     cost: '',
     currency: 'UAH',
     plan: 'Monthly',
     customPeriodInDays: null,
+    trialPeriodInDays: null,
     startDate: '',
-    notes: '',
+    note: '',
+    cancelLink: '',
+    picLink: '',
     isMuted: false,
   })
 
@@ -79,11 +95,11 @@ export function useSubscriptions() {
           pageSize: pageSize.value,
         },
       })
+      
       subscriptions.value = response.data.items
       totalCount.value = response.data.totalCount
       totalPages.value = response.data.totalPages
       currentPage.value = response.data.page
-      console.log('totalPages:', totalPages.value)
     } catch (error) {
       toast.error('Failed to load subscriptions')
       subscriptions.value = []
@@ -108,8 +124,11 @@ export function useSubscriptions() {
       currency: sub.currency,
       plan: sub.plan,
       customPeriodInDays: sub.customPeriodInDays || null,
-      startDate: formatDate(sub.startDate),
-      notes: sub.notes ?? '',
+      trialPeriodInDays: sub.plan === 'Trial' ? sub.customPeriodInDays || null : null,
+      startDate: formatForInput(sub.startDate) ?? '',
+      note: sub.note ?? '',
+      cancelLink: sub.cancelLink ?? '',
+      picLink: sub.picLink ?? '',
       isMuted: sub.isMuted,
     }
     editingSubscription.value = sub
@@ -119,31 +138,39 @@ export function useSubscriptions() {
   const calculatedNextRenewalDate = computed(() => {
     if (!formData.value.startDate || !formData.value.plan) return ''
 
-    const start = new Date(formData.value.startDate)
-    let nextDate = new Date(start)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
     const plan = formData.value.plan.toLowerCase()
 
-    const addPeriod = (date: Date) => {
-      const d = new Date(date)
-      if (plan === 'monthly') d.setMonth(d.getMonth() + 1)
-      else if (plan === 'quarterly') d.setMonth(d.getMonth() + 3)
-      else if (plan === 'annual') d.setFullYear(d.getFullYear() + 1)
-      else if (plan === 'custom' && formData.value.customPeriodInDays) {
-        d.setDate(d.getDate() + formData.value.customPeriodInDays)
+    const start = new Date(formData.value.startDate)
+    start.setHours(0, 0, 0, 0)
+
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+
+    const next = start
+
+    if (plan === 'trial') {
+      const trialDays = formData.value.trialPeriodInDays || 7
+      next.setDate(next.getDate() + trialDays)
+      console.log('Trial period, next date set to:', next)
+    } else {
+      while (next <= now) {
+        if (plan === 'monthly') {
+          next.setMonth(next.getMonth() + 1)
+        } else if (plan === 'quarterly') {
+          next.setMonth(next.getMonth() + 3)
+        } else if (plan === 'annual') {
+          next.setFullYear(next.getFullYear() + 1)
+        } else if (plan === 'custom' && formData.value.customPeriodInDays) {
+          next.setDate(next.getDate() + formData.value.customPeriodInDays)
+        }
       }
-      return d
     }
 
-    while (nextDate <= today) {
-      const prevTime = nextDate.getTime()
-      nextDate = addPeriod(nextDate)
-      if (nextDate.getTime() <= prevTime) break
-    }
+    const year = next.getFullYear()
+    const month = String(next.getMonth() + 1).padStart(2, '0')
+    const day = String(next.getDate()).padStart(2, '0')
 
-    return nextDate.toISOString().split('T')[0]
+    return `${year}-${month}-${day}`
   })
 
   const fetchSummary = async () => {
@@ -157,7 +184,8 @@ export function useSubscriptions() {
       })
       totalCost.value = response.data.totalCost
       activeSubscriptionsCount.value = response.data.activeSubscriptionsCount
-      totalRemindersCount.value = response.data.totalRemindersCount
+      activeRemindersCount.value = response.data.activeRemindersCount
+      projectedCost.value = response.data.projectedCost
     } catch (error) {
       toast.error('Could not calculate total cost')
     } finally {
@@ -172,8 +200,11 @@ export function useSubscriptions() {
       currency: 'UAH',
       plan: 'Monthly',
       customPeriodInDays: null,
+      trialPeriodInDays: null,
       startDate: '',
-      notes: '',
+      note: '',
+      cancelLink: '',
+      picLink: '',
       isMuted: false,
     }
     editingSubscription.value = null
@@ -231,21 +262,24 @@ export function useSubscriptions() {
     }
   }
 
-  const deleteSubscription = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this subscription?')) {
-      return
-    }
+  const confirmDelete = async () => {
+    if (!subToDelete.value) return
 
     try {
+      const id = subToDelete.value.id
       await api.delete(`/subscriptions/${id}`)
+
       toast.info('Subscription deleted')
+
+      showDeleteConfirm.value = false
+      subToDelete.value = null
+
       await loadSubscriptions()
       await fetchSummary()
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Failed to delete subscription')
     }
   }
-
   const toggleActive = async (id: string) => {
     const sub = subscriptions.value.find((s) => s.id === id)
     if (!sub) return
@@ -257,6 +291,7 @@ export function useSubscriptions() {
       toast.success(newMuteStatus ? 'Subscription muted' : 'Subscription activated', {
         autoClose: 1500,
       })
+      await fetchSummary()
     } catch (error) {
       toast.error('Failed to update status')
     } finally {
@@ -276,7 +311,7 @@ export function useSubscriptions() {
     pageSize,
     totalPages,
     totalCount,
-    totalRemindersCount,
+    activeRemindersCount,
     setPage,
     resetForm,
     popularCurrencies,
@@ -292,11 +327,15 @@ export function useSubscriptions() {
     showSubscriptionModal,
     isSubmitting,
     editSubscription,
-    deleteSubscription,
+    confirmDelete,
     toggleActive,
     handleSubmit,
     openAddSubscriptionModal,
     selectedSubscription,
     formErrors,
+    openDeleteModal,
+    showDeleteConfirm,
+    subToDelete,
+    projectedCost,
   }
 }

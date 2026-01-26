@@ -4,6 +4,7 @@ import { createApp } from 'vue'
 import { createAuth0 } from '@auth0/auth0-vue'
 import 'vue3-toastify/dist/index.css'
 import Vue3Toastify, { type ToastContainerOptions } from 'vue3-toastify'
+import router from './router'
 
 import App from './App.vue'
 
@@ -30,4 +31,5 @@ app.use(
   }),
 )
 
+app.use(router)
 app.mount('#app')

@@ -7,10 +7,20 @@ export const localNotifyTime = (utcTime: string) => {
   })
 }
 
-export const formatDateTime = (isoString: string) => {
+export const formatDateTime = (isoString: string, dateOnly: boolean) => {
   if (!isoString) return ''
 
   const date = new Date(isoString)
+
+  if (dateOnly) {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+      .format(date)
+      .replace(',', '')
+  }
 
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
@@ -24,7 +34,7 @@ export const formatDateTime = (isoString: string) => {
     .replace(',', '')
 }
 
-export const formatDate = (dateString: string) => {
-  if (!dateString) return ''
-  return dateString.substring(0, 10)
+export const formatForInput = (isoString: string) => {
+  if (!isoString) return ''
+  return isoString.split('T')[0]
 }

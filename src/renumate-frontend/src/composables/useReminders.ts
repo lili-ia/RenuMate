@@ -10,9 +10,14 @@ export function useReminders(
   fetchSummary: () => Promise<void>,
 ) {
   const showReminderModal = ref(false)
+  const openReminderModal = (sub: Subscription) => {
+    selectedSubscription.value = sub
+    showReminderModal.value = true
+  }
+  
   const isSubmitting = ref(false)
+  
   const reminderErrors = ref<Record<string, string[]>>({})
-
   const clearErrors = () => {
     reminderErrors.value = {}
   }
@@ -26,12 +31,30 @@ export function useReminders(
     autoClose: 3000,
     position: 'top-right',
   }
-
-  const openReminderModal = (sub: Subscription) => {
-    selectedSubscription.value = sub
-    showReminderModal.value = true
+  
+  const showDeleteReminderConfirm = ref(false)
+  const reminderToDelete = ref<{ id: string; info: string } | null>(null)
+  
+  const openDeleteReminderModal = (reminder: any) => {
+    reminderToDelete.value = {
+      id: reminder.id,
+      info: `${reminder.daysBeforeRenewal} days before`,
+    }
+    showDeleteReminderConfirm.value = true
   }
 
+  const confirmDeleteReminder = async () => {
+    if (!reminderToDelete.value) return
+
+    try {
+      await deleteReminder(reminderToDelete.value.id) 
+      showDeleteReminderConfirm.value = false
+      reminderToDelete.value = null
+    } catch (error) {
+      console.error(error)
+    }
+  }
+  
   const handleAddReminder = async () => {
     if (!reminderForm.value.daysBeforeRenewal) {
       toast.warn('Please enter days before renewal', toastConfig)
@@ -75,9 +98,7 @@ export function useReminders(
   }
 
   const deleteReminder = async (reminderId: string) => {
-    if (!confirm('Are you sure you want to delete this reminder?')) {
-      return
-    }
+    if (!reminderToDelete.value) return
 
     try {
       await api.delete(`/reminders/${reminderId}`)
@@ -104,5 +125,9 @@ export function useReminders(
     deleteReminder,
     closeReminderModal,
     reminderErrors,
+    confirmDeleteReminder,
+    showDeleteReminderConfirm,
+    openDeleteReminderModal,
+    reminderToDelete,
   }
 }
