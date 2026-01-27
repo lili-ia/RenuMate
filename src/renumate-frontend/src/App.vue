@@ -11,7 +11,6 @@ const {
   isLoading,
   user,
   logout: auth0Logout,
-  error: auth0Error,
 } = useAuth0()
 
 const route = useRoute()

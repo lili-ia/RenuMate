@@ -21,7 +21,7 @@ defineProps({
     </div>
 
     <div class="flex items-start justify-between">
-      <div class="flex flex-col min-w-0">
+      <div class="flex flex-col min-w-0 flex-grow">
         <slot name="label"></slot>
 
         <div v-if="loading" class="h-10 w-32 bg-slate-100 animate-pulse rounded-xl mt-2"></div>
@@ -37,7 +37,7 @@ defineProps({
               <span
                 class="text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg transition-colors group-hover:bg-indigo-100"
               >
-                {{ projectedCost }} {{ currency }}
+                {{ projectedCost }}
               </span>
             </div>
 

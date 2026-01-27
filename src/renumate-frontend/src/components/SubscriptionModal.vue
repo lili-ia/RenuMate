@@ -46,15 +46,15 @@ import IconSpinner from './icons/IconSpinner.vue'
   <Transition name="modal">
     <div
       v-if="isOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+      class="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-2 sm:p-6"
     >
       <div
-        class="fixed inset-0 bg-slate-900/40 backdrop-blur-md transition-opacity"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity"
         @click="$emit('close')"
       ></div>
 
       <div
-        class="relative bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full overflow-hidden transform transition-all border border-slate-100"
+        class="relative bg-white rounded-[2.5rem] shadow-2xl max-w-2xl w-full flex flex-col transform transition-all border border-slate-100 max-h-[calc(100dvh-2rem)] sm:max-h-[90vh] overflow-hidden"
       >
         <div class="px-8 pt-8 pb-4 flex justify-between items-center">
           <div>
@@ -171,6 +171,10 @@ import IconSpinner from './icons/IconSpinner.vue'
                   v-model="modelValue.startDate"
                   class="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-indigo-500 shadow-sm"
                 />
+                <p v-if="errors.StartDate" class="mt-2 text-xs text-red-500 flex items-center gap-1">
+                  <span class="w-1 h-1 bg-red-500 rounded-full inline-block"></span>
+                  {{ errors.StartDate[0] }}
+                </p>
                 <p v-if="modelValue.startDate" class="text-xs text-gray-500">
                   Selected: {{ formatDateTime(modelValue.startDate, true) }}
                 </p>
