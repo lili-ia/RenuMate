@@ -1,9 +1,9 @@
 ﻿services:
-  web:
+  backend:
     image: renumate-backend:latest
     build:
-      context: .
-      dockerfile: RenuMate.Api/Dockerfile
+      context: ./RenuMate.Api
+      dockerfile: Dockerfile
     depends_on:
       - db
     ports:
@@ -19,6 +19,11 @@
       POSTGRES_DB: RenuMate
     volumes:
       - postgres_data:/var/lib/postgresql
+    entrypoint: >
+      sh -c "
+      (sleep 5 && psql -U postgres -c 'CREATE DATABASE \"RenuMateHangfire\";') &
+      /usr/local/bin/docker-entrypoint.sh postgres
+      "
     restart: unless-stopped
     
   frontend:
