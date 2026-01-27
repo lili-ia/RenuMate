@@ -2,10 +2,9 @@
 import { ref, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useUsers } from '@/composables/useUsers'
-import { setAuthToken } from '@/api'
 import { formatDateTime } from '@/utils/formatters'
 
-const { isAuthenticated, loginWithRedirect, getAccessTokenSilently } = useAuth0()
+const { isAuthenticated, loginWithRedirect } = useAuth0()
 const { fetchUserInfo, user, handleDeactivate } = useUsers()
 
 const showDeleteModal = ref(false)
@@ -15,8 +14,6 @@ watch(
     async (isAuth) => {
       if (isAuth) {
         try {
-          const accessToken = await getAccessTokenSilently()
-          setAuthToken(accessToken)
           await fetchUserInfo()
         } catch (error) {
           if (error?.message?.includes('Missing Refresh Token')) {
@@ -56,7 +53,7 @@ watch(
           </div>
 
           <div class="text-center md:text-left">
-            <h1 class="text-4xl font-black text-slate-900 tracking-tight">{{ user.name }}</h1>
+            <h1 class="text-4xl font-black text-slate-900 tracking-tight break-all">{{ user.name }}</h1>
             <p
               class="text-slate-400 font-bold text-sm uppercase tracking-widest mt-2 flex items-center justify-center md:justify-start gap-2"
             >

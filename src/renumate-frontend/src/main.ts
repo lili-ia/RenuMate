@@ -10,26 +10,25 @@ import App from './App.vue'
 
 const app = createApp(App)
 
-console.log(import.meta.env.AUTH0_DOMAIN)
-
 app.use(Vue3Toastify, {
   autoClose: 3000,
   position: 'bottom-right',
 } as ToastContainerOptions)
 
-app.use(
-  createAuth0({
+
+export const auth0 = createAuth0({
     domain: import.meta.env.VITE_AUTH0_DOMAIN,
     clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
     authorizationParams: {
       redirect_uri: window.location.origin,
       audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-      scope: 'openid profile email',
+      scope: 'openid profile email offline_access',
     },
     cacheLocation: 'localstorage',
     useRefreshTokens: true,
-  }),
-)
+  })
+
+app.use(auth0)
 
 app.use(router)
 app.mount('#app')

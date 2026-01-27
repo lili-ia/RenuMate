@@ -1,8 +1,8 @@
 import { ref, type Ref } from 'vue'
-import api, {setAuthToken} from '@/api'
+import api from '@/api'
 import { toast, type ToastOptions } from 'vue3-toastify'
 import 'vue3-toastify/dist/index.css'
-import { useAuth0 } from '@auth0/auth0-vue'
+import { auth0 } from '@/main';
 
 export function useUsers() {
   const user: Ref<any> = ref(null)
@@ -12,14 +12,12 @@ export function useUsers() {
     position: 'top-right',
   }
 
-  const { logout: auth0Logout, getAccessTokenSilently, checkSession } = useAuth0()
-
   const isProcessing = ref(false)
   const isSent = ref(false)
   const isAlreadyActive = ref(false)
   
   const logout = () => {
-    auth0Logout({ logoutParams: { returnTo: window.location.origin } })
+    auth0.logout({ logoutParams: { returnTo: window.location.origin } })
   }
 
   const fetchUserInfo = async () => {
@@ -35,7 +33,6 @@ export function useUsers() {
   const handleDeactivate = async () => {
     try {
       await api.delete('/users/me')
-      toast.success('Account deactivated successfully', toastConfig)
       logout()
     } catch (error) {
       toast.error('Failed to deactivate account', toastConfig)
@@ -45,14 +42,11 @@ export function useUsers() {
   const onReactivateRequest = async () => {
     isProcessing.value = true
     try {
-      const accessToken = await getAccessTokenSilently({ ignoreCache: true })
-      setAuthToken(accessToken)
-
       await api.post('/users/reactivate-request')
 
       isSent.value = true
       toast.success('Reactivation email sent! Please check your inbox.')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Request failed:', error)
 
       if (error.response?.status === 502) {
@@ -74,15 +68,12 @@ export function useUsers() {
 
   const confirmAccountActivation = async (token: string) => {
     try {
-      const accessToken = await getAccessTokenSilently({ ignoreCache: true })
-      setAuthToken(accessToken)
-
       await api.patch('/users/me', { token })
 
       status.value = 'success'
 
       try {
-        await checkSession()
+        await auth0.checkSession()
       } catch (e) {
         console.warn('CheckSession failed, proceeding anyway', e)
       }
@@ -93,6 +84,29 @@ export function useUsers() {
       const message = error.response?.data?.detail || 'Failed to verify token'
       toast.error(message)
       return false
+    }
+  }
+
+  const syncUserWithDatabase = async () => {
+    try {
+      const response = await api.post('/users/sync-user', {})
+
+      const mustBeUpdated = response.data.message.includes('created') || 
+                        response.data.message.includes('successfully synced')
+
+      if (mustBeUpdated) {
+        console.log('User synced on backend.')
+        
+        try {
+          await auth0.getAccessTokenSilently({cacheMode: 'off'}); 
+          console.log('Token claims updated.')
+        } catch (tokenError) {
+          console.warn('Silent token refresh skipped on first login.')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to sync user:', error)
+      throw error 
     }
   }
 
@@ -124,7 +138,8 @@ export function useUsers() {
     isSent,
     confirmAccountActivation,
     status,
-    countdown
+    countdown,
+    syncUserWithDatabase,
     resendEmail,
     getActiveStatus
   }

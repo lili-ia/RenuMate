@@ -1,7 +1,6 @@
 <script setup>
 import { watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
-import api, { setAuthToken } from '@/api.ts'
 import SubscriptionModal from '@/components/SubscriptionModal.vue'
 import ReminderModal from '@/components/ReminderModal.vue'
 import StatCard from '@/components/StatCard.vue'
@@ -12,7 +11,7 @@ import SubscriptionEmptyState from '@/components/SubscriptionEmptyState.vue'
 import { formatDateTime, localNotifyTime } from '@/utils/formatters.ts'
 import { useSubscriptions } from '@/composables/useSubscriptions'
 import { useReminders } from '@/composables/useReminders'
-import { toast } from 'vue3-toastify'
+import { useUsers } from '@/composables/useUsers'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
 
 const {
@@ -65,43 +64,27 @@ const {
   isSubmitting: isSubmittingReminder,
 } = useReminders(loadSubscriptions, selectedSubscription, fetchSummary)
 
-const { isAuthenticated, loginWithRedirect, isLoading, getAccessTokenSilently } = useAuth0()
+const { syncUserWithDatabase } = useUsers()
+
+const { isAuthenticated, loginWithRedirect, isLoading } = useAuth0()
 
 watch(
-  isAuthenticated,
-  async (isAuth) => {
-    if (isAuth) {
+  [isAuthenticated, isLoading],
+  async ([isAuth, isLoad]) => {
+    if (!isLoad && isAuth) {
       try {
-        const accessToken = await getAccessTokenSilently()
-        setAuthToken(accessToken)
-        await syncUserWithDatabase()
-        await loadSubscriptions()
-        await fetchSummary()
+        await syncUserWithDatabase();
+        await loadSubscriptions();
+        await fetchSummary();
       } catch (error) {
-        console.error('Error during authentication process:', error)
-        toast.error('Session error. Please log in again.')
-        if (error?.message?.includes('Missing Refresh Token')) {
-          loginWithRedirect()
-        }
+        console.error('Initial sync failed:', error);
       }
     }
   },
-  { immediate: true },
-)
+  { immediate: true }
+);
 
 watch([selectedCurrency, selectedPeriod], fetchSummary)
-
-const syncUserWithDatabase = async () => {
-  try {
-    const response = await api.post('/users/sync-user', {})
-    if (response.data.message.includes('created') || response.data.message.includes('synced')) {
-      await getAccessTokenSilently({ ignoreCache: true })
-    }
-  } catch (error) {
-    console.error('Failed to sync user:', error)
-    throw error
-  }
-}
 </script>
 <template>
   <div class="min-h-screen bg-slate-50/50">
@@ -179,7 +162,7 @@ const syncUserWithDatabase = async () => {
           <template #label>
             <select
               v-model="selectedPeriod"
-              class="text-indigo-200 text-xs font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 cursor-pointer p-0 appearance-none"
+              class="bg-white/10 text-white text-[10px] font-black p-2 rounded-xl border border-white/20 focus:ring-0 cursor-pointer backdrop-blur-md uppercase"
             >
               <option value="daily">Daily Cost</option>
               <option value="monthly">Monthly Cost</option>
