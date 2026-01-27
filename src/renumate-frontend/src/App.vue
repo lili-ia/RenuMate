@@ -1,10 +1,9 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { onMounted } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import TheNavbar from '@/components/TheNavbar.vue'
 import IconDollar from '@/components/icons/IconDollar.vue'
-import { useRoute, useRouter } from 'vue-router'
-import { toast } from 'vue3-toastify'
+import { useRoute } from 'vue-router'
 
 const {
   isAuthenticated,
@@ -26,19 +25,6 @@ const serviceIcons = [
   { name: 'Disney+', color: 'bg-blue-900', left: '90%', delay: '5s', size: 'w-10 h-10' },
 ]
 
-const verificationErrorMessage = ref(null)
-
-watch(auth0Error, (newError) => {
-  if (newError) {
-    console.error('Auth0 Error:', newError)
-    if (newError.message.includes('verify your email')) {
-      verificationErrorMessage.value = 'Please confirm your email before logging in.'
-    } else {
-      toast.error(newError.message)
-    }
-  }
-})
-
 onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
   const errorDesc = urlParams.get('error_description')
@@ -47,8 +33,7 @@ onMounted(() => {
   }
 })
 
-const handleLogin = () => {
-  verificationErrorMessage.value = null
+const handleLogin = async () => {
   loginWithRedirect()
 }
 
@@ -94,23 +79,14 @@ const handleLogout = () => {
         </div>
         <h1 class="text-4xl font-black text-gray-900 mb-2 tracking-tight">RenuMate</h1>
 
-        <div
-          v-if="verificationErrorMessage"
-          class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg animate-bounce-subtle"
-        >
-          <p class="text-amber-700 text-sm font-medium">
-            {{ verificationErrorMessage }}
-          </p>
-        </div>
-
-        <p v-else class="text-gray-600 mb-6">Track and manage your subscriptions with ease</p>
+        <p class="text-gray-600 mb-6">Track and manage your subscriptions with ease</p>
 
         <button
           @click="handleLogin"
-          class="group relative w-full bg-gray-900 text-white py-4 rounded-2xl transition-all duration-300 hover:bg-indigo-600 hover:shadow-indigo-200 hover:shadow-2xl active:scale-95 font-bold overflow-hidden cursor-pointer"
+          class="group relative w-full bg-gray-900 text-white py-4 rounded-2xl transition-all duration-300 hover:bg-indigo-700 hover:shadow-indigo-200 hover:shadow-2xl active:scale-95 font-bold overflow-hidden cursor-pointer"
         >
           <span class="relative z-10">
-            {{ verificationErrorMessage ? 'Try Login Again' : 'Login to Continue' }}
+            Login to Continue
           </span>
         </button>
       </div>

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import Dashboard from '@/components/Dashboard.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -6,7 +7,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'main',
-      component: () => import('@/components/Dashboard.vue'),
+      component: Dashboard,
       meta: { title: 'Dashboard' },
     },
     {
@@ -39,6 +40,12 @@ const router = createRouter({
           next()
         }
       },
+    },
+    {
+      path: '/verification-required',
+      name: 'verification-required',
+      component: () => import('@/components/VerificationRequired.vue'),
+      meta: { hideNavbar: true }
     },
     {
       path: '/:pathMatch(.*)*',

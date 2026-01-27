@@ -96,6 +96,24 @@ export function useUsers() {
     }
   }
 
+  const resendEmail = async () => {
+    try {
+      await api.post('/users/resend-verification')
+      toast.success('Check your inbox!')
+    } catch (error) {
+      toast.error('An internal error occurred. Please try again later.')
+    }
+  }
+
+  const getActiveStatus = async () => {
+    try {
+      const response = await api.get('/users/status')
+      return response.data.isActive
+    } catch (error) {
+      toast.error('An internal error occurred. Please try again later.')
+    }
+  }
+
   return { 
     fetchUserInfo, 
     user, 
@@ -107,5 +125,7 @@ export function useUsers() {
     confirmAccountActivation,
     status,
     countdown
+    resendEmail,
+    getActiveStatus
   }
 }

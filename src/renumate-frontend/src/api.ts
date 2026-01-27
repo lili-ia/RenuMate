@@ -1,16 +1,30 @@
 import axios from 'axios'
 import router from '@/router'
 
+import { auth0 } from './main';
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 })
 
-export const setAuthToken = (token: string) => {
-  api.interceptors.request.use((config) => {
-    config.headers.Authorization = `Bearer ${token}`
-    return config
-  })
-}
+api.interceptors.request.use(async (config) => {
+  try {
+    const token = await auth0.getAccessTokenSilently();
+    
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (error: any) {
+    console.error("Auth0 token error:", error);
+    
+    if (error.error === 'login_required' || error.error === 'consent_required') {
+      auth0.loginWithRedirect(); 
+    }
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
 
 api.interceptors.response.use(
   (response) => response, 
@@ -24,8 +38,10 @@ api.interceptors.response.use(
       ) {
         router.push({ name: 'reactivate-request' })
       }
+      if (data.title === 'Email Verification Required') {
+        router.push({ name: 'verification-required' })
+      }
     }
-
     return Promise.reject(error)
   },
 )
