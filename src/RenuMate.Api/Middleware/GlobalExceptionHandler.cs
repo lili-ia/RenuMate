@@ -19,7 +19,7 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
             DomainConflictException => (StatusCodes.Status409Conflict, "Business Rule Conflict", false),
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized", false),
             RateLimitApiException => (StatusCodes.Status429TooManyRequests, "Too Many Requests", true),
-            ErrorApiException => (StatusCodes.Status502BadGateway, "External Service Error", true),
+            ErrorApiException => (StatusCodes.Status500InternalServerError, "Identity Service Error", true),
             _ => (StatusCodes.Status500InternalServerError, "Server Error", true)
         };
 

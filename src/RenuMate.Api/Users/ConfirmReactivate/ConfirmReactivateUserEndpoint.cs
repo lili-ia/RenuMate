@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 using RenuMate.Api.Common;
 using RenuMate.Api.Extensions;
 
-namespace RenuMate.Api.Users.Reactivate;
+namespace RenuMate.Api.Users.ConfirmReactivate;
 
-public abstract class ReactivateUserEndpoint : IEndpoint
+public abstract class ConfirmReactivateUserEndpoint : IEndpoint
 {
     public static void Map(IEndpointRouteBuilder app) => app
         .MapPatch("api/users/me", Handle)
@@ -21,8 +21,8 @@ public abstract class ReactivateUserEndpoint : IEndpoint
         .Produces(StatusCodes.Status500InternalServerError);
 
     private static async Task<IResult> Handle(
-        [FromBody] ReactivateUserRequest request,
-        IValidator<ReactivateUserRequest> validator,
+        [FromBody] ConfirmReactivateUserRequest request,
+        IValidator<ConfirmReactivateUserRequest> validator,
         IMediator mediator,
         CancellationToken cancellationToken = default)
     {
@@ -33,7 +33,7 @@ public abstract class ReactivateUserEndpoint : IEndpoint
             return validation.ToFailureResult();
         }
 
-        var command = new ReactivateUserCommand(request.Token);
+        var command = new ConfirmReactivateUserCommand(request.Token);
         var result = await mediator.Send(command, cancellationToken);
 
         return result;

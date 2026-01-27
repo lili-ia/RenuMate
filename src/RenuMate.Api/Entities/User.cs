@@ -70,14 +70,15 @@ public class User : BaseEntity
     
     public bool UpdateProfile(string email, string name, bool emailVerified)
     {
-        if (Email == email && Name == name)
+        if (Email == email && Name == name && EmailConfirmed == emailVerified)
         {
-            EmailConfirmed = emailVerified;
             return false;
         }
 
         Email = email;
         Name = name;
+        EmailConfirmed = emailVerified;
+        
         IsMetadataSynced = false;
         
         return true;

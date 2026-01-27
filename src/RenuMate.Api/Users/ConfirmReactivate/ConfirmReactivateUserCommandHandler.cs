@@ -5,16 +5,16 @@ using RenuMate.Api.Common;
 using RenuMate.Api.Persistence;
 using RenuMate.Api.Services.Contracts;
 
-namespace RenuMate.Api.Users.Reactivate;
+namespace RenuMate.Api.Users.ConfirmReactivate;
 
-public class ReactivateUserCommandHandler(
+public class ConfirmReactivateUserCommandHandler(
     ITokenService tokenService, 
     RenuMateDbContext db, 
     IAuth0Service auth0Service,
-    ILogger<ReactivateUserCommandHandler> logger) 
-    : IRequestHandler<ReactivateUserCommand, IResult>
+    ILogger<ConfirmReactivateUserCommandHandler> logger) 
+    : IRequestHandler<ConfirmReactivateUserCommand, IResult>
 {
-    public async Task<IResult> Handle(ReactivateUserCommand request, CancellationToken cancellationToken)
+    public async Task<IResult> Handle(ConfirmReactivateUserCommand request, CancellationToken cancellationToken)
     {
         var principal = tokenService.ValidateToken(request.Token, expectedPurpose: "Reactivate");
         

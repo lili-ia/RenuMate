@@ -8,10 +8,12 @@ using RenuMate.Api.Subscriptions.GetDetailsById;
 using RenuMate.Api.Subscriptions.GetSummary;
 using RenuMate.Api.Subscriptions.SetMuteStatus;
 using RenuMate.Api.Subscriptions.Update;
+using RenuMate.Api.Users.ConfirmReactivate;
 using RenuMate.Api.Users.Deactivate;
+using RenuMate.Api.Users.GetActiveStatus;
 using RenuMate.Api.Users.GetInfo;
-using RenuMate.Api.Users.Reactivate;
 using RenuMate.Api.Users.RequestReactivate;
+using RenuMate.Api.Users.ResendVerificationEmail;
 using RenuMate.Api.Users.Sync;
 
 namespace RenuMate.Api.Extensions;
@@ -21,10 +23,12 @@ public static class EndpointExtensions
     public static void MapEndpoints(this WebApplication app)
     {
         DeactivateUserEndpoint.Map(app);
-        ReactivateUserEndpoint.Map(app);
+        ConfirmReactivateUserEndpoint.Map(app);
         RequestUserReactivateEndpoint.Map(app);
         GetUserInfoEndpoint.Map(app);
         SyncUserEndpoint.Map(app);
+        ResendVerificationEmailEndpoint.Map(app);
+        GetUserActiveStatusEndpoint.Map(app);
         
         CreateSubscriptionEndpoint.Map(app);
         UpdateSubscriptionEndpoint.Map(app);

@@ -77,6 +77,33 @@ public class Auth0Service(
         }
     }
 
+    public async Task ResendVerificationEmail(string auth0Id, CancellationToken ct = default)
+    {
+        try
+        {
+            var token = await GetManagementTokenAsync();
+            managementClient.UpdateAccessToken(token);
+
+            var request = new VerifyEmailJobRequest { UserId = auth0Id };
+            await managementClient.Jobs.SendVerificationEmailAsync(request, ct);
+        }
+        catch (RateLimitApiException ex)
+        {
+            logger.LogError(ex, "Auth0 API Rate Limits exceeded: {Message}", ex.Message);
+            throw; 
+        }
+        catch (ErrorApiException ex)
+        {
+            logger.LogError(ex, "Auth0 API Error: {Message}. Status: {Status}", ex.Message, ex.StatusCode);
+            throw; 
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unknown error during Auth0 sync for user {Auth0Id}", auth0Id);
+            throw;
+        }
+    }
+
     private async Task<string> GetManagementTokenAsync()
     {
         const string cacheKey = "Auth0ManagementToken";

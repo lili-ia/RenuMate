@@ -21,4 +21,21 @@ public class UserContext(IHttpContextAccessor httpContextAccessor, IConfiguratio
             return id.Value;
         }
     }
+    
+    public string Auth0Id 
+    {
+        get
+        {
+            var user = httpContextAccessor.HttpContext?.User;
+
+            var auth0Id = user?.GetUserInfo(config).Auth0Id;
+
+            if (auth0Id is null || string.IsNullOrEmpty(auth0Id))
+            {
+                throw new UnauthorizedAccessException("User context is missing or invalid.");
+            }
+            
+            return auth0Id;
+        }
+    }
 }
