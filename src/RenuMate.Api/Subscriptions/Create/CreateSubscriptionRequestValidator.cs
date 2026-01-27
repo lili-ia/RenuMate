@@ -36,8 +36,8 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
         });
 
         RuleFor(x => x.StartDate)
-            .LessThanOrEqualTo(DateTime.UtcNow.AddYears(5))
-            .WithMessage("Start date is too far in the future.");
+            .NotEmpty().WithMessage("Start date is required.")
+            .NotEqual(DateTime.MinValue).WithMessage("Start date is required.");
 
         RuleFor(x => x.Cost)
             .GreaterThanOrEqualTo(0).WithMessage("Cost must be non-negative.");

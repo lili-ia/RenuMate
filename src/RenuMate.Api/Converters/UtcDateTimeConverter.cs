@@ -18,9 +18,20 @@ public class UtcDateTimeConverter : JsonConverter<DateTime>
 {
     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var dt = DateTime.Parse(reader.GetString()!);
+        var stringValue = reader.GetString();
+
+        if (string.IsNullOrWhiteSpace(stringValue))
+        {
+            return DateTime.MinValue; 
+        }
+
+        if (DateTime.TryParse(stringValue, out var dateTime))
+        {
+            var dt = DateTime.Parse(reader.GetString()!);
+            return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+        }
         
-        return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+        throw new JsonException($"Couldn't parse date: {stringValue}");
     }
 
     public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)

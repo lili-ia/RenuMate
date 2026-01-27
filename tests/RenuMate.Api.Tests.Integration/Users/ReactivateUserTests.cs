@@ -8,7 +8,7 @@ using RenuMate.Api.Persistence;
 
 namespace RenuMate.Api.Tests.Integration.Users;
 
-public class ReactivateUserEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
+public class ConfirmReactivateUserEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private readonly Guid _userId = Guid.NewGuid();
 

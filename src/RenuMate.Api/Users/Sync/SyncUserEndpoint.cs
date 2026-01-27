@@ -30,7 +30,7 @@ public class SyncUserEndpoint : IEndpoint
 
         if (string.IsNullOrEmpty(auth0Id) || string.IsNullOrEmpty(email))
         {
-            return TypedResults.Problem(statusCode: 400, title: "Invalid Identity Claims");
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid Identity Claims");
         }
 
         var command = new SyncUserCommand(

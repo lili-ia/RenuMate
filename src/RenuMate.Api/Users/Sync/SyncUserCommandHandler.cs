@@ -15,13 +15,19 @@ public class SyncUserCommandHandler(RenuMateDbContext db, IAuth0Service auth0Ser
 
         if (user is not null)
         {
-            user.UpdateProfile(request.Email, request.Name, request.IsVerified);
-            await db.SaveChangesAsync(cancellationToken);
+            var updated = user.UpdateProfile(request.Email, request.Name, request.IsVerified);
+
+            if (updated)
+            {
+                await db.SaveChangesAsync(cancellationToken);
             
-            logger.LogInformation("Existing user {UserId} with auth0 id {Auth0Id} was successfully synced with database.", 
-                user.Id, request.Auth0Id);
+                logger.LogInformation("Existing user {UserId} with auth0 id {Auth0Id} was successfully synced with database.", 
+                    user.Id, request.Auth0Id);
             
-            return Results.Ok(new SyncUserResponse ("User successfully synced.", user.Id));
+                return Results.Ok(new SyncUserResponse ("User successfully synced.", user.Id));
+            }
+
+            return Results.Ok(new SyncUserResponse("User already synced.", user.Id));
         }
 
         var newUser = User.Create(request.Auth0Id, request.Email, request.Name);
