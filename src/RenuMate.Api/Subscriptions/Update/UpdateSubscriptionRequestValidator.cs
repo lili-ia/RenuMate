@@ -33,7 +33,7 @@ public class UpdateSubscriptionRequestValidator : AbstractValidator<UpdateSubscr
             .WithMessage("Trial period should only be set for trial subscriptions.");
 
         RuleFor(x => x.StartDate)
-            .LessThanOrEqualTo(DateTime.UtcNow.AddYears(5))
+            .LessThanOrEqualTo(DateOnly.FromDateTime(DateTime.UtcNow.AddYears(5)))
             .WithMessage("Start date is too far in the future.");
 
         RuleFor(x => x.Cost)

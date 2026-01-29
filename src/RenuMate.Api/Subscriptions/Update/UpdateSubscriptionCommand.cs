@@ -10,7 +10,7 @@ public sealed record UpdateSubscriptionCommand(
     SubscriptionPlan Plan,
     int? CustomPeriodInDays,
     int? TrialPeriodInDays,
-    DateTime StartDate,
+    DateOnly StartDate,
     decimal Cost,
     Currency Currency,
     string? Note,

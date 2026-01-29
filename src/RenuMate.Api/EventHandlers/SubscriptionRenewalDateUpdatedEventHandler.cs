@@ -31,8 +31,9 @@ public class SubscriptionRenewalDateUpdatedEventHandler(
 
         foreach (var rule in reminderRules)
         {
-            var scheduledAt = notification.RenewalDate
-                .Date
+            var renewalDateTime = notification.RenewalDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            
+            var scheduledAt = renewalDateTime
                 .AddDays(-rule.DaysBeforeRenewal)
                 .Add(rule.NotifyTimeUtc);
         

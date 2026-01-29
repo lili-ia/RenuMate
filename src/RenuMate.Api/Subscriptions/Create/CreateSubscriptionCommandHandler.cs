@@ -16,7 +16,7 @@ public class CreateSubscriptionCommandHandler(
 {
     public async Task<IResult> Handle(CreateSubscriptionCommand request, CancellationToken cancellationToken)
     {
-        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime);
         
         try
         {
@@ -24,15 +24,15 @@ public class CreateSubscriptionCommandHandler(
             {
                 SubscriptionPlan.Trial => Subscription.CreateTrial(
                     request.Name, request.TrialPeriodInDays ?? 7, request.StartDate, request.UserId, request.Cost, 
-                    request.Currency, now, cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note),
+                    request.Currency, today, cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note),
                 
                 SubscriptionPlan.Custom => Subscription.CreateCustom(
                     request.Name, request.CustomPeriodInDays ?? 30, request.Cost, request.Currency, request.StartDate,
-                    request.UserId, now, cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note),
+                    request.UserId, today, cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note),
 
                 _ => Subscription.CreateStandard(
                     request.Name, request.Plan, request.Cost, request.Currency, request.StartDate, request.UserId,
-                    now, cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note)
+                    today, cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note)
             };
 
             db.Subscriptions.Add(subscription); 

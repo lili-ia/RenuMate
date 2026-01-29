@@ -44,9 +44,12 @@ public static class SubscriptionMapper
                     r.Id,
                     r.DaysBeforeRenewal,
                     r.NotifyTimeUtc,
-                    subscription.RenewalDate.Date
+                    subscription.RenewalDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)
                         .AddDays(-r.DaysBeforeRenewal)
-                        .Add(r.NotifyTimeUtc)
+                        .Add(r.NotifyTimeUtc),
+                    subscription.RenewalDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)
+                        .AddDays(-r.DaysBeforeRenewal)
+                        .Add(r.NotifyTimeUtc) < DateTime.UtcNow
                 )).ToList()
         );
 }

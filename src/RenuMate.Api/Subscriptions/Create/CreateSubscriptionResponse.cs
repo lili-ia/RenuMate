@@ -3,7 +3,7 @@ namespace RenuMate.Api.Subscriptions.Create;
 public record CreateSubscriptionResponse(
     Guid Id,
     string Name,
-    DateTime RenewalDate,
+    DateOnly RenewalDate,
     string Cost,
     string? Note,
     string? CancelLink,

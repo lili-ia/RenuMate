@@ -30,14 +30,14 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
                 .GreaterThan(0).WithMessage("Trial period must be greater than zero.");
             
             RuleFor(x => x)
-                .Must(x => x.StartDate.AddDays(x.TrialPeriodInDays ?? 0) > DateTime.UtcNow.Date)
+                .Must(x => x.StartDate.AddDays(x.TrialPeriodInDays ?? 0) > DateOnly.FromDateTime(DateTime.UtcNow))
                 .WithMessage("You cannot add a trial that has already expired.")
                 .WithName("TrialPeriodInDays");
         });
 
         RuleFor(x => x.StartDate)
             .NotEmpty().WithMessage("Start date is required.")
-            .NotEqual(DateTime.MinValue).WithMessage("Start date is required.");
+            .NotEqual(DateOnly.FromDateTime(DateTime.MinValue)).WithMessage("Start date is required.");
 
         RuleFor(x => x.Cost)
             .GreaterThanOrEqualTo(0).WithMessage("Cost must be non-negative.");

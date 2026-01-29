@@ -3,6 +3,7 @@ export interface Reminder {
   daysBeforeRenewal: number
   notifyTime: string
   nextReminder: string
+  isSent: boolean
 }
 
 export interface Subscription {
@@ -13,7 +14,7 @@ export interface Subscription {
   plan: string
   customPeriodInDays: number | null
   startDate: string
-  renewalDate: string
+  renewalDate: Date
   daysLeft: number
   isMuted: boolean
   cancelLink?: string

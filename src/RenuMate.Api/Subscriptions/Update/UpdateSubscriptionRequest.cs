@@ -5,7 +5,7 @@ public sealed record UpdateSubscriptionRequest(
     string Plan,
     int? CustomPeriodInDays,
     int? TrialPeriodInDays,
-    DateTime StartDate,
+    DateOnly StartDate,
     decimal Cost,
     string Currency,
     string? Note,

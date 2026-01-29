@@ -7,8 +7,8 @@ public record SubscriptionDto(
     string Name,
     SubscriptionPlan Plan,
     int? CustomPeriodInDays,
-    DateTime StartDate,
-    DateTime RenewalDate,
+    DateOnly StartDate,
+    DateOnly RenewalDate,
     decimal Cost,
     Currency Currency,
     bool IsMuted,
@@ -17,5 +17,5 @@ public record SubscriptionDto(
     string? PicLink
 )
 {
-    public int DaysLeft => (RenewalDate - DateTime.UtcNow).Days;
+    public int DaysLeft => RenewalDate.DayNumber - DateOnly.FromDateTime(DateTime.UtcNow).DayNumber;
 }

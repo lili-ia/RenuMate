@@ -110,6 +110,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.Configure<JsonOptions>(options =>
 {
     options.SerializerOptions.Converters.Add(new UtcDateTimeConverter());
+    options.SerializerOptions.Converters.Add(new DateOnlyJsonConverter());
 });
 
 builder.Services.AddHttpContextAccessor();

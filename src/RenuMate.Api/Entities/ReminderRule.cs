@@ -29,9 +29,11 @@ public class ReminderRule : BaseEntity
         };
     }
     
-    public ReminderOccurrence? CreateOccurrence(DateTime subscriptionRenewalDate, DateTime now)
+    public ReminderOccurrence? CreateOccurrence(DateOnly subscriptionRenewalDate, DateTime now)
     {
-        var scheduledAt = subscriptionRenewalDate.Date
+        var renewalDate = subscriptionRenewalDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        
+        var scheduledAt = renewalDate
             .AddDays(-DaysBeforeRenewal)
             .Add(NotifyTimeUtc);
 

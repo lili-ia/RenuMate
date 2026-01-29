@@ -12,7 +12,7 @@ interface SubscriptionForm {
   plan: string
   customPeriodInDays: number | null
   trialPeriodInDays: number | null
-  startDate: string
+  startDate: Date
   note: string
   cancelLink: string
   picLink: string
@@ -79,7 +79,7 @@ export function useSubscriptions() {
     plan: 'Monthly',
     customPeriodInDays: null,
     trialPeriodInDays: null,
-    startDate: '',
+    startDate: new Date(),
     note: '',
     cancelLink: '',
     picLink: '',
@@ -125,7 +125,7 @@ export function useSubscriptions() {
       plan: sub.plan,
       customPeriodInDays: sub.customPeriodInDays || null,
       trialPeriodInDays: sub.plan === 'Trial' ? sub.customPeriodInDays || null : null,
-      startDate: formatForInput(sub.startDate) ?? '',
+      startDate: sub.startDate ? new Date(sub.startDate) : new Date(),
       note: sub.note ?? '',
       cancelLink: sub.cancelLink ?? '',
       picLink: sub.picLink ?? '',

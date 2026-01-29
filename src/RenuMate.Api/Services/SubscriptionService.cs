@@ -9,15 +9,15 @@ public class SubscriptionService(RenuMateDbContext db, ILogger<SubscriptionServi
 {
     public async Task ProcessSubscriptionRenewalAsync(CancellationToken cancellationToken = default)
     {
-        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime);
 
         var subscriptions = await db.Subscriptions
-            .Where(s => s.RenewalDate.Date <= now)
+            .Where(s => s.RenewalDate <= today)
             .ToListAsync(cancellationToken);
 
         foreach (var s in subscriptions)
         {
-            s.UpdateNextRenewalDate(now);
+            s.UpdateNextRenewalDate(today);
         }
 
         await db.SaveChangesAsync(cancellationToken);

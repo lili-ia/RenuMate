@@ -27,14 +27,14 @@ public class UpdateSubscriptionCommandHandler(
             );
         }
 
-        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime);
         
         try
         {
             subscription.UpdateDetails(request.Name, request.Note, request.CancelLink, request.PicLink);
             subscription.ChangePricing(request.Cost, request.Currency);
             subscription.UpdatePlanAndStartDate(
-                request.Plan, request.StartDate, now, request.CustomPeriodInDays, request.TrialPeriodInDays);
+                request.Plan, request.StartDate, today, request.CustomPeriodInDays, request.TrialPeriodInDays);
             
             await db.SaveChangesAsync(cancellationToken);
             
