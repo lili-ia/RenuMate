@@ -201,7 +201,7 @@ export function useSubscriptions() {
       plan: 'Monthly',
       customPeriodInDays: null,
       trialPeriodInDays: null,
-      startDate: '',
+      startDate: new Date(),
       note: '',
       cancelLink: '',
       picLink: '',
