@@ -6,6 +6,8 @@
       dockerfile: Dockerfile
     depends_on:
       - db
+    env_file:
+      - .env
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -32,7 +34,7 @@
       context: ./renumate-frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "8081:80"
     restart: unless-stopped
 
 volumes:
