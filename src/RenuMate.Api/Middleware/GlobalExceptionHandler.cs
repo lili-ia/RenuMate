@@ -2,7 +2,6 @@ using Auth0.Core.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using RenuMate.Api.Exceptions;
-using RenuMate.Api.Entities;
 
 namespace RenuMate.Api.Middleware;
 
@@ -27,9 +26,14 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         {
             logger.LogError(exception, "An unhandled exception occurred: {Message}", exception.Message);
         }
+        else if (exception is UnauthorizedAccessException)
+        {
+            logger.LogWarning("Security access violation: {Message}. Instance: {Instance}", 
+                exception.Message, httpContext.Request.Path);
+        }
         else
         {
-            logger.LogWarning("Domain logic violation: {Message}", exception.Message);
+            logger.LogInformation("Business rule violation: {Message}", exception.Message);
         }
 
         var problemDetails = new ProblemDetails
