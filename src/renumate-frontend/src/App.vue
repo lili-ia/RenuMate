@@ -1,9 +1,9 @@
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import TheNavbar from '@/components/TheNavbar.vue'
 import IconDollar from '@/components/icons/IconDollar.vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const {
   isAuthenticated,
@@ -13,7 +13,10 @@ const {
   logout: auth0Logout,
 } = useAuth0()
 
+
+const router = useRouter()
 const route = useRoute()
+
 
 const serviceIcons = [
   { name: 'Netflix', color: 'bg-red-600', left: '10%', delay: '0s', size: 'w-12 h-12' },
@@ -24,13 +27,37 @@ const serviceIcons = [
   { name: 'Disney+', color: 'bg-blue-900', left: '90%', delay: '5s', size: 'w-10 h-10' },
 ]
 
+const infoMessage = ref('') 
+const isSuccessMessage = ref(false)
+
+watch([isAuthenticated, isLoading], ([isAuth, loading]) => {
+  if (!loading && isAuth) {
+    const isSocial = user.value?.sub?.includes('google-oauth2') || false
+    
+    if (!isSocial && !user.value?.email_verified) {
+      router.push('/verification-required')
+    }
+  }
+}, { immediate: true })
 onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
   const errorDesc = urlParams.get('error_description')
-  if (errorDesc && errorDesc.includes('verify your email')) {
-    verificationErrorMessage.value = 'Check your email: we have sent you a confirmation link.'
+  const error = urlParams.get('error')
+
+  if (errorDesc) {
+
+    if (errorDesc.includes('verify your email')) {
+      infoMessage.value = 'Check your email: we have sent you a confirmation link.'
+      isSuccessMessage.value = false
+    } 
+
+    else if (error === 'access_denied' && errorDesc.includes('linked')) {
+      infoMessage.value = errorDesc 
+      isSuccessMessage.value = true
+    }
   }
 })
+
 
 const handleLogin = async () => {
   loginWithRedirect()
@@ -88,6 +115,23 @@ const handleLogout = () => {
             Login to Continue
           </span>
         </button>
+
+        <div v-if="infoMessage" 
+            class="mb-6 p-3 rounded-xl border flex items-center gap-3 text-left"
+            :class="[
+              isSuccessMessage 
+                ? 'bg-green-50/50 border-green-100 text-green-800' 
+                : 'bg-amber-50/50 border-amber-100 text-amber-800'
+            ]"
+          >
+            <div class="flex-shrink-0">
+              <div :class="['w-1.5 h-1.5 rounded-full', isSuccessMessage ? 'bg-green-500' : 'bg-amber-500']"></div>
+            </div>
+            
+            <p class="text-xs font-semibold flex-1">
+              {{ infoMessage }}
+            </p>
+          </div>
       </div>
     </div>
 

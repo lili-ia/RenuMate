@@ -5,6 +5,8 @@ import { createAuth0 } from '@auth0/auth0-vue'
 import 'vue3-toastify/dist/index.css'
 import Vue3Toastify, { type ToastContainerOptions } from 'vue3-toastify'
 import router from './router'
+import PrimeVue from 'primevue/config';
+import Aura from '@primeuix/themes/aura';
 
 import App from './App.vue'
 
@@ -29,6 +31,14 @@ export const auth0 = createAuth0({
   })
 
 app.use(auth0)
-
 app.use(router)
+app.use(PrimeVue, {
+    theme: {
+        preset: Aura,
+        options: {
+            darkModeSelector: 'none'
+        }
+    }
+});
+
 app.mount('#app')

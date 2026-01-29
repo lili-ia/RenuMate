@@ -12,8 +12,11 @@ public static class ReminderMapper
             reminder.Id,
             reminder.DaysBeforeRenewal,
             reminder.NotifyTimeUtc,
-            reminder.Subscription.RenewalDate.Date
+            reminder.Subscription.RenewalDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)
                 .AddDays(-reminder.DaysBeforeRenewal)
-                .Add(reminder.NotifyTimeUtc)
+                .Add(reminder.NotifyTimeUtc),
+            reminder.Subscription.RenewalDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)
+                .AddDays(-reminder.DaysBeforeRenewal)
+                .Add(reminder.NotifyTimeUtc) < DateTime.UtcNow
         );
 }

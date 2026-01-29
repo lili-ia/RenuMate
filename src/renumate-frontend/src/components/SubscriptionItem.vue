@@ -48,7 +48,7 @@ import ReminderItem from './ReminderItem.vue'
           </div>
           <div
             v-if="sub.plan === 'Trial'"
-            class="absolute -top-2 -right-2 bg-amber-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-sm border-2 border-white uppercase tracking-tighter"
+            class="absolute -top-2 -right-2 bg-amber-400 z-20 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-sm border-2 border-white uppercase tracking-tighter"
           >
             Trial
           </div>

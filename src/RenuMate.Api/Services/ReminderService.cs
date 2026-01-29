@@ -65,13 +65,6 @@ public class ReminderService(
                 if (emailSenderResponse.IsSuccess)
                 {
                     occurrence.MarkAsSent();
-
-                    var nextOccurrence = rule.CreateOccurrence(sub.RenewalDate, now);
-
-                    if (nextOccurrence is not null)
-                    {
-                        rule.AddOccurrence(nextOccurrence);
-                    }
                 }
                 else
                 {

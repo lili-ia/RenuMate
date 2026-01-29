@@ -10,8 +10,10 @@ const COOLDOWN_KEY = 'verification_cooldown_end';
 
 const router = useRouter()
 
-const { logout: auth0Logout, user, checkSession, getAccessTokenSilently } = useAuth0()
+const { logout: auth0Logout, user, getAccessTokenSilently, isLoading } = useAuth0()
 const { resendEmail } = useUsers()
+
+const isInitialChecking = ref(true)
 
 const isResending = ref(false)
 const cooldown = ref(0)
@@ -42,7 +44,6 @@ const handleResend = async () => {
   isResending.value = true
   try {
     await resendEmail()
-    toast.success('New verification link sent!')
     startCooldown()
   } catch (err) {
     toast.error('Failed to send email. Try again later.')
@@ -59,18 +60,27 @@ const handleLogout = () => {
 
 const verifyStatus = async () => {
   try {
-    await checkSession()
+    await getAccessTokenSilently({ cacheMode: 'off' });
+
+    if (isInitialChecking.value) {
+      isInitialChecking.value = false
+    }
     
     if (user.value?.email_verified) {
-      clearInterval(pollingTimer)
+      clearInterval(pollingTimer);
+      
       setTimeout(() => {
-        router.push('/')
-      }, 500)
+        router.push('/');
+      }, 3000); 
     }
   } catch (e) {
-    console.log('Still waiting for verification...')
+    if (isInitialChecking.value) {
+      isInitialChecking.value = false
+    }
+
+    console.log('Still waiting for verification...');
   }
-}
+};
 
 onMounted(() => {
   const savedEndTime = localStorage.getItem(COOLDOWN_KEY);
@@ -94,7 +104,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+  <div v-if="isLoading || isInitialChecking" class="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+    <div class="animate-spin inline-block w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
+    <p class="text-slate-500 font-medium animate-pulse">Checking verification status...</p>
+  </div>
+  <div v-else class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-slate-100 text-center">
       <div class="w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
         <IconDollar class="w-10 h-10 text-amber-600" />
@@ -106,15 +120,21 @@ onUnmounted(() => {
         <span class="font-bold text-slate-700">{{ user?.email }}</span>. <br>
         Please check your inbox.
       </p>
-      <div v-if="user?.email_verified" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <div class="animate-bounce bg-green-100 p-4 rounded-full mb-4">
-            <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      <Transition name="fade">
+        <div v-if="user?.email_verified" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+          <div class="animate-bounce bg-green-100 p-6 rounded-full mb-6">
+            <svg class="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
             </svg>
+          </div>
+          <h2 class="text-3xl font-black text-slate-900 mb-2">Email Verified!</h2>
+          <p class="text-slate-500 text-lg">Everything is ready. Redirecting you now...</p>
+          
+          <div class="mt-8 w-48 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full bg-green-500 animate-progress"></div>
+          </div>
         </div>
-            <h2 class="text-xl font-bold">Email Verified!</h2>
-            <p class="text-gray-500">Redirecting to dashboard...</p>
-        </div>
+      </Transition>
 
       <div class="space-y-4">
         <button
@@ -147,3 +167,20 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes progress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.animate-progress {
+  animation: progress 3s linear forwards;
+}
+</style>

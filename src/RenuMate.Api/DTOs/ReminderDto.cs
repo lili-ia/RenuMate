@@ -4,5 +4,6 @@ public sealed record ReminderDto(
     Guid Id,
     int DaysBeforeRenewal,
     TimeSpan NotifyTime,
-    DateTime NextReminder
+    DateTime NextReminder,
+    bool IsSent
 );

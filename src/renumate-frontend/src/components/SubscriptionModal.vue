@@ -1,5 +1,9 @@
 <script setup>
-defineProps({
+import { ref, watch } from 'vue'
+import IconSpinner from './icons/IconSpinner.vue'
+import DatePicker from 'primevue/datepicker';
+
+const props = defineProps({
   isOpen: Boolean,
   isEditing: Boolean,
   isSubmitting: Boolean,
@@ -39,7 +43,40 @@ const currencies = [
 ]
 
 defineEmits(['close', 'save'])
-import IconSpinner from './icons/IconSpinner.vue'
+
+const formattedCost = ref('')
+
+watch(
+  () => props.isOpen,
+  (newVal) => {
+    if (newVal) {
+      formattedCost.value = props.modelValue?.cost?.toString().replace('.', ',') || ''
+    }
+  },
+  { immediate: true }
+)
+
+const handleCostInput = (event) => {
+  let value = event.target.value
+  
+  value = value.replace(/[^0-9,.]/g, '')
+  
+  const normalizedValue = value.replace(',', '.')
+  
+  const parts = normalizedValue.split('.')
+  if (parts.length > 2) return
+
+  formattedCost.value = value
+
+  const numericValue = parseFloat(normalizedValue)
+  props.modelValue.cost = isNaN(numericValue) ? 0 : numericValue
+}
+
+const setToday = () => {
+  props.modelValue.startDate = new Date()
+}
+
+
 </script>
 
 <template>
@@ -111,9 +148,11 @@ import IconSpinner from './icons/IconSpinner.vue'
               >
               <div class="relative">
                 <input
-                  v-model="modelValue.cost"
-                  type="number"
-                  step="0.01"
+                  :value="formattedCost"
+                  @input="handleCostInput"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="0,00"
                   class="w-full pl-5 pr-12 py-3.5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono font-bold"
                 />
                 <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
@@ -166,18 +205,13 @@ import IconSpinner from './icons/IconSpinner.vue'
                   class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2 block ml-1"
                   >Start Date</label
                 >
-                <input
-                  type="date"
-                  v-model="modelValue.startDate"
-                  class="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-indigo-500 shadow-sm"
-                />
+                <DatePicker v-model="modelValue.startDate" dateFormat="dd/mm/yy" inputClass="rounded-lg" showIcon></DatePicker>
+               
                 <p v-if="errors.StartDate" class="mt-2 text-xs text-red-500 flex items-center gap-1">
                   <span class="w-1 h-1 bg-red-500 rounded-full inline-block"></span>
                   {{ errors.StartDate[0] }}
                 </p>
-                <p v-if="modelValue.startDate" class="text-xs text-gray-500">
-                  Selected: {{ formatDateTime(modelValue.startDate, true) }}
-                </p>
+                <button @click="setToday" class="mt-2 text-xs text-indigo-500 hover:text-indigo-700">Today</button>
               </div>
               <div>
                 <label
