@@ -36,7 +36,10 @@ jobs:
           script: |
             git config --global url."https://${{ secrets.PERSONAL_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
             cd /home/liliia/projects/RenuMate/src
-            git pull origin master
+            git fetch origin master
+            git reset --hard origin/master
+            git clean -fd
+            docker compose down
             docker compose build --no-cache
             docker compose up -d --force-recreate
       - name: Update deployment Status (success)
