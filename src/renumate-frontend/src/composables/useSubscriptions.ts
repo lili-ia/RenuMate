@@ -1,8 +1,8 @@
 import { ref, computed } from 'vue'
 import api from '@/api'
-import { formatForInput } from '@/utils/formatters.ts'
-import type { PaginatedResponse, Subscription } from '@/types'
+import type { PaginatedResponse, Subscription, Tag } from '@/types'
 import { toast } from 'vue3-toastify'
+
 
 interface SubscriptionForm {
   id?: string
@@ -12,7 +12,8 @@ interface SubscriptionForm {
   plan: string
   customPeriodInDays: number | null
   trialPeriodInDays: number | null
-  startDate: Date
+  startDate?: Date | null
+  tags: Tag[]
   note: string
   cancelLink: string
   picLink: string
@@ -79,7 +80,8 @@ export function useSubscriptions() {
     plan: 'Monthly',
     customPeriodInDays: null,
     trialPeriodInDays: null,
-    startDate: new Date(),
+    startDate: null,
+    tags: [],
     note: '',
     cancelLink: '',
     picLink: '',
@@ -125,7 +127,8 @@ export function useSubscriptions() {
       plan: sub.plan,
       customPeriodInDays: sub.customPeriodInDays || null,
       trialPeriodInDays: sub.plan === 'Trial' ? sub.customPeriodInDays || null : null,
-      startDate: sub.startDate ? new Date(sub.startDate) : new Date(),
+      startDate: sub.startDate ? new Date(sub.startDate) : null,
+      tags: sub.tags || [],
       note: sub.note ?? '',
       cancelLink: sub.cancelLink ?? '',
       picLink: sub.picLink ?? '',
@@ -202,6 +205,7 @@ export function useSubscriptions() {
       customPeriodInDays: null,
       trialPeriodInDays: null,
       startDate: new Date(),
+      tags: [],
       note: '',
       cancelLink: '',
       picLink: '',
@@ -232,8 +236,11 @@ export function useSubscriptions() {
 
     const payload = {
       ...formData.value,
+      startDate: formData.value.startDate || new Date(),
       customPeriodInDays:
         formData.value.plan === 'Custom' ? formData.value.customPeriodInDays : null,
+      tagIds: formData.value.tags.map(t => t.id) || [],
+      tags: undefined
     }
 
     isSubmitting.value = true

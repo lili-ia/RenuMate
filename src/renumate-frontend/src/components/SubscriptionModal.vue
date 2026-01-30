@@ -1,7 +1,11 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import IconSpinner from './icons/IconSpinner.vue'
 import DatePicker from 'primevue/datepicker';
+import MultiSelect from 'primevue/multiselect';
+import { useTags } from '@/composables/useTags';
+
+const { tags, fetchTags } = useTags();
 
 const props = defineProps({
   isOpen: Boolean,
@@ -76,6 +80,9 @@ const setToday = () => {
   props.modelValue.startDate = new Date()
 }
 
+onMounted(() => {
+  fetchTags()
+})
 
 </script>
 
@@ -260,7 +267,58 @@ const setToday = () => {
               </p>
             </div>
           </div>
+          <div>
+            <label
+              class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 block ml-1"
+              >Tags</label
+            >
+            <MultiSelect
+              v-model="modelValue.tags"
+              :options="tags"
+              dataKey="id"
+              filter optionLabel="name"
+              showClear
+              placeholder="Select tags"
+              class="w-full custom-multiselect"
+              display="chip"
+            >
+              <template #chip="slotProps">
+                <div 
+                  class="flex items-center gap-2 px-2 py-0.5 rounded-lg border mr-1 transition-all hover:pr-1 group"
+                  :style="{ 
+                    backgroundColor: slotProps.value.color + '15', 
+                    borderColor: slotProps.value.color + '40' 
+                  }"
+                >
+                  <div 
+                    class="w-1.5 h-1.5 rounded-full" 
+                    :style="{ backgroundColor: slotProps.value.color }"
+                  ></div>
+                  
+                  <span class="text-[11px] font-bold" :style="{ color: slotProps.value.color }">
+                    {{ slotProps.value.name }}
+                  </span>
 
+                  <button 
+                    type="button"
+                    @click.stop="slotProps.removeCallback($event)"
+                    class="flex items-center justify-center w-4 h-4 rounded-md hover:bg-black/5 transition-colors cursor-pointer"
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      class="h-3 w-3" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                      :style="{ stroke: slotProps.value.color }"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </template>
+            </MultiSelect>
+          </div>
           <div class="space-y-4">
             <div class="group">
               <label

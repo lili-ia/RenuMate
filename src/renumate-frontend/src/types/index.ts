@@ -17,6 +17,8 @@ export interface Subscription {
   renewalDate: Date
   daysLeft: number
   isMuted: boolean
+  tagIds: string[]
+  tags?: Tag[]
   cancelLink?: string
   picLink?: string
   note?: string
@@ -29,4 +31,11 @@ export interface PaginatedResponse<T> {
   pageSize: number
   totalCount: number
   totalPages: number
+}
+
+export interface Tag {
+  id: string
+  name: string
+  color: string
+  isSystem: boolean
 }

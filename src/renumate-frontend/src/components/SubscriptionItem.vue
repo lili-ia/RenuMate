@@ -84,6 +84,30 @@ import ReminderItem from './ReminderItem.vue'
         </div>
       </div>
 
+      <div v-if="sub.tags?.length" class="flex flex-wrap gap-2 mb-5">
+        <div
+          v-for="tag in sub.tags"
+          :key="tag.id"
+          class="flex items-center gap-2 px-3 py-1 rounded-full transition-all hover:brightness-95 cursor-default group"
+          :style="{ 
+            backgroundColor: tag.color + '15', 
+          }"
+        >
+          <div class="relative flex items-center justify-center">
+            <div 
+              class="w-1.5 h-1.5 rounded-full relative z-10" 
+              :style="{ backgroundColor: tag.color }"
+            ></div>
+          </div>
+          
+          <span 
+            class="text-[10px] font-bold tracking-tight text-slate-700"
+          >
+            {{ tag.name }}
+          </span>
+        </div>
+      </div>
+
       <div
         class="grid grid-cols-3 gap-2 bg-slate-50/80 rounded-2xl p-3 mb-4 border border-slate-100/50"
       >
