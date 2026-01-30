@@ -9,6 +9,7 @@ public sealed record CreateSubscriptionRequest
     DateOnly StartDate,
     decimal Cost,
     string Currency,
+    List<Guid> TagIds,
     string? Note,
     string? CancelLink,
     string? PicLink

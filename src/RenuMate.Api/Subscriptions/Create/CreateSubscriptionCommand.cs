@@ -13,6 +13,7 @@ public sealed record CreateSubscriptionCommand
     DateOnly StartDate,
     decimal Cost,
     Currency Currency,
+    List<Guid> TagIds,
     string? Note,
     string? CancelLink,
     string? PicLink

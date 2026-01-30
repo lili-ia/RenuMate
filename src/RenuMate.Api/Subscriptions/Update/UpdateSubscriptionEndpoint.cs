@@ -60,6 +60,7 @@ public abstract class UpdateSubscriptionEndpoint : IEndpoint
             StartDate: request.StartDate,
             Cost: request.Cost,
             Currency: newCurrency,
+            TagIds: request.TagIds,
             Note: request.Note,
             CancelLink: request.CancelLink,
             PicLink: request.PicLink

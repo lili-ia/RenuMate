@@ -21,13 +21,14 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
         .WithDescription("Creates a new subscription for the authenticated user, calculating the renewal date based " +
                          "on the plan and optional custom period.")
         .WithTags("Subscriptions")
-        .Produces<CreateSubscriptionResponse>(StatusCodes.Status200OK, MediaTypeNames.Application.Json)
+        .Produces<CreateSubscriptionResponse>(StatusCodes.Status201Created, MediaTypeNames.Application.Json)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status409Conflict)
         .Produces(StatusCodes.Status500InternalServerError);
     
-    private static async Task<IResult> Handle(
-        [FromBody] CreateSubscriptionRequest request,
+    private static async Task<IResult> Handle( 
+        [FromBody] CreateSubscriptionRequest request, 
         IUserContext userContext,
         IValidator<CreateSubscriptionRequest> validator,
         IMediator mediator,
@@ -54,6 +55,7 @@ public abstract class CreateSubscriptionEndpoint : IEndpoint
             StartDate: request.StartDate,
             Cost: request.Cost,
             Currency: currency,
+            TagIds: request.TagIds,
             Note: request.Note,
             CancelLink: request.CancelLink,
             PicLink: request.PicLink

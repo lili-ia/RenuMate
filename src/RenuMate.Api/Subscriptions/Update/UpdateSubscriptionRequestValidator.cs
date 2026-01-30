@@ -43,6 +43,13 @@ public class UpdateSubscriptionRequestValidator : AbstractValidator<UpdateSubscr
             .NotEmpty().WithMessage("Currency is required.")
             .Must(currency => Enum.TryParse<Currency>(currency, true, out _))
             .WithMessage("Invalid currency.");
+        
+        RuleFor(x => x.TagIds)
+            .NotNull().WithMessage("Tag list cannot be null.")
+            .Must(ids => ids.All(id => id != Guid.Empty))
+            .WithMessage("Tag IDs cannot be empty GUIDs.")
+            .Must(ids => ids.Count == ids.Distinct().Count())
+            .WithMessage("Duplicate tags are not allowed in one subscription.");
 
         RuleFor(x => x.Note)
             .MaximumLength(500).WithMessage("Note cannot exceed 500 characters.")

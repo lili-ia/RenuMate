@@ -5,6 +5,7 @@ public record CreateSubscriptionResponse(
     string Name,
     DateOnly RenewalDate,
     string Cost,
+    List<Guid> TagIds,
     string? Note,
     string? CancelLink,
     string? PicLink

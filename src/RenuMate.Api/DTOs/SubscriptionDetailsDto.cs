@@ -15,5 +15,6 @@ public sealed record SubscriptionDetailsDto(
     string? Note,
     string? CancelLink,
     string? PicLink,
-    List<ReminderDto> Reminders
+    List<ReminderDto> Reminders,
+    List<TagDto> Tags
 ) : SubscriptionDto(Id, Name, Plan, CustomPeriodInDays, StartDate, RenewalDate, Cost, Currency, IsMuted, Note, CancelLink, PicLink);

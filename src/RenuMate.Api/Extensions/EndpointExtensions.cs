@@ -8,6 +8,9 @@ using RenuMate.Api.Subscriptions.GetDetailsById;
 using RenuMate.Api.Subscriptions.GetSummary;
 using RenuMate.Api.Subscriptions.SetMuteStatus;
 using RenuMate.Api.Subscriptions.Update;
+using RenuMate.Api.Tags.Create;
+using RenuMate.Api.Tags.Delete;
+using RenuMate.Api.Tags.GetAll;
 using RenuMate.Api.Users.ConfirmReactivate;
 using RenuMate.Api.Users.Deactivate;
 using RenuMate.Api.Users.GetActiveStatus;
@@ -41,5 +44,9 @@ public static class EndpointExtensions
         CreateReminderEndpoint.Map(app);
         DeleteReminderEndpoint.Map(app);
         GetAllRemindersForSubscriptionEndpoint.Map(app);
+        
+        CreateTagEndpoint.Map(app);
+        GetAllTagsForUserEndpoint.Map(app);
+        DeleteTagEndpoint.Map(app);
     }
 }

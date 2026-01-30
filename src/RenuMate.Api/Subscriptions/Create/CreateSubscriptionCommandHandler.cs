@@ -16,6 +16,19 @@ public class CreateSubscriptionCommandHandler(
 {
     public async Task<IResult> Handle(CreateSubscriptionCommand request, CancellationToken cancellationToken)
     {
+        var requestedTags = await db.Tags
+            .Where(t => request.TagIds.Contains(t.Id) && (t.UserId == request.UserId || t.IsSystem))
+            .ToListAsync(cancellationToken);
+        
+        if (requestedTags.Count != request.TagIds.Distinct().Count())
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid tags",
+                detail: "One or more tag IDs are invalid or don't belong to you."
+            );
+        }
+        
         var today = DateOnly.FromDateTime(timeProvider.GetUtcNow().DateTime);
         
         try
@@ -35,16 +48,24 @@ public class CreateSubscriptionCommandHandler(
                     today, cancelLink: request.CancelLink, picLink: request.PicLink, note: request.Note)
             };
 
+            foreach (var tag in requestedTags)
+            {
+                subscription.AddTag(tag);
+            }
+
             db.Subscriptions.Add(subscription); 
             await db.SaveChangesAsync(cancellationToken);
             
             logger.LogInformation("User {UserId} successfully created new subscription {SubId}.", request.UserId, subscription.Id);
 
-            return Results.Ok(new CreateSubscriptionResponse(
+            return Results.Created(
+                $"/api/subscriptions/{subscription.Id}", 
+                new CreateSubscriptionResponse(
                 subscription.Id,
                 subscription.Name,
                 subscription.RenewalDate,
                 $"{subscription.Cost}{subscription.Currency}",
+                TagIds: request.TagIds,
                 subscription.Note,
                 subscription.CancelLink,
                 subscription.PicLink
@@ -56,7 +77,7 @@ public class CreateSubscriptionCommandHandler(
                 request.UserId);
             
             return Results.Problem(
-                statusCode: StatusCodes.Status403Forbidden,
+                statusCode: StatusCodes.Status409Conflict,
                 title: "Subscription already exists.",
                 detail: "You cannot create more than one subscription with the same name."
             );

@@ -13,7 +13,21 @@ public class UpdateSubscriptionCommandHandler(
 {
     public async Task<IResult> Handle(UpdateSubscriptionCommand request, CancellationToken cancellationToken)
     {
+        var requestedTags = await db.Tags
+            .Where(t => request.TagIds.Contains(t.Id) && (t.UserId == request.UserId || t.IsSystem))
+            .ToListAsync(cancellationToken);
+        
+        if (requestedTags.Count != request.TagIds.Distinct().Count())
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid tags",
+                detail: "One or more tag IDs are invalid or don't belong to you."
+            );
+        }
+        
         var subscription = await db.Subscriptions
+            .Include(s => s.Tags)
             .FirstOrDefaultAsync(s => s.Id == request.SubscriptionId && s.UserId == request.UserId, cancellationToken);
 
         if (subscription is null)
@@ -35,6 +49,7 @@ public class UpdateSubscriptionCommandHandler(
             subscription.ChangePricing(request.Cost, request.Currency);
             subscription.UpdatePlanAndStartDate(
                 request.Plan, request.StartDate, today, request.CustomPeriodInDays, request.TrialPeriodInDays);
+            subscription.UpdateTags(requestedTags);
             
             await db.SaveChangesAsync(cancellationToken);
             
@@ -47,20 +62,45 @@ public class UpdateSubscriptionCommandHandler(
                 subscription.Name,
                 subscription.RenewalDate,
                 $"{subscription.Cost}{subscription.Currency}",
+                TagIds: request.TagIds,
                 subscription.Note,
                 subscription.CancelLink,
                 subscription.PicLink
             ));
         }
-        catch (DbUpdateException ex) when (ex.InnerException is NpgsqlException { SqlState: "23505" })  
+        catch (DbUpdateException ex) when (ex.InnerException is NpgsqlException { SqlState: "23505" } npgsqlEx)
         {
-            logger.LogInformation("User {UserId} attempted to create more than one subscription with the same name.", 
-                request.UserId);
-            
+            var message = npgsqlEx.Message;
+    
+            if (message.Contains("IX_Subscriptions_Name") || message.Contains("Name"))
+            {
+                logger.LogInformation("Conflict: Subscription name '{Name}' already exists for user {UserId}.", 
+                    request.Name, request.UserId);
+
+                return Results.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Subscription name conflict",
+                    detail: "You already have a subscription with this name."
+                );
+            }
+
+            if (message.Contains("SubscriptionTag") || message.Contains("PK_SubscriptionTag"))
+            {
+                logger.LogWarning("Conflict: Duplicate tags detected for subscription {SubId}.", request.SubscriptionId);
+
+                return Results.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Tag conflict",
+                    detail: "The subscription already contains one of these tags."
+                );
+            }
+
+            logger.LogWarning("Database conflict (23505): {Message}", message);
+    
             return Results.Problem(
                 statusCode: StatusCodes.Status409Conflict,
-                title: "Subscription with this name already exists.",
-                detail: "You can not create more than one subscription with similar names."
+                title: "Data conflict",
+                detail: "A record with these details already exists."
             );
         }
     }

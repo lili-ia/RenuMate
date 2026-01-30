@@ -50,6 +50,13 @@ public static class SubscriptionMapper
                     subscription.RenewalDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)
                         .AddDays(-r.DaysBeforeRenewal)
                         .Add(r.NotifyTimeUtc) < DateTime.UtcNow
-                )).ToList()
+                )).ToList(),
+            subscription.Tags
+                .Select(t => new TagDto(
+                    t.Id,
+                    t.Name,
+                    t.Color,
+                    t.IsSystem
+                    )).ToList()
         );
 }

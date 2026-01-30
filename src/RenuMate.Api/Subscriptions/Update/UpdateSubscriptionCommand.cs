@@ -13,6 +13,7 @@ public sealed record UpdateSubscriptionCommand(
     DateOnly StartDate,
     decimal Cost,
     Currency Currency,
+    List<Guid> TagIds,
     string? Note,
     string? CancelLink,
     string? PicLink) : IRequest<IResult>;

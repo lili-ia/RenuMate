@@ -36,6 +36,8 @@ public class Subscription : BaseEntity
     
     public IReadOnlyCollection<ReminderRule> Reminders => _reminders.AsReadOnly();
     
+    public IReadOnlyCollection<Tag> Tags => _tags.AsReadOnly();
+    
     public static Subscription CreateTrial(
         string name, 
         int trialDays, 
@@ -239,6 +241,26 @@ public class Subscription : BaseEntity
         _reminders.Clear();
     }
     
+    public void AddTag(Tag tag)
+    {
+        if (_tags.Any(t => t.Id == tag.Id))
+        {
+            return;
+        }
+        
+        _tags.Add(tag);
+    }
+    
+    public void UpdateTags(List<Tag> newTags)
+    {
+        _tags.Clear();
+
+        foreach (var tag in newTags)
+        {
+            _tags.Add(tag);
+        }
+    }
+    
     private int GetPlanDurationInDays()
     {
         return Plan switch
@@ -332,4 +354,6 @@ public class Subscription : BaseEntity
     }
     
     private readonly List<ReminderRule> _reminders = [];
+    
+    private readonly List<Tag> _tags = [];
 }
