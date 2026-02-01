@@ -13,6 +13,7 @@ import { useSubscriptions } from '@/composables/useSubscriptions'
 import { useReminders } from '@/composables/useReminders'
 import { useUsers } from '@/composables/useUsers'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
+import MultiSelect from 'primevue/multiselect'
 
 const {
   subscriptions,
@@ -48,6 +49,7 @@ const {
   subToDelete,
   openDeleteModal,
   isSubmitting: isSubmittingSubscription,
+  sortConfig,
 } = useSubscriptions()
 
 const {
@@ -216,14 +218,38 @@ watch([selectedCurrency, selectedPeriod], fetchSummary)
         class="bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white shadow-sm overflow-hidden p-2"
       >
         <div class="p-6 md:p-10">
-          <div class="flex items-center justify-between mb-8 px-2">
-            <h2 class="text-2xl font-black text-slate-900 tracking-tight">My Subscriptions</h2>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full"
-                >{{ totalCount }} total</span
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8 px-2">
+          <h2 class="text-2xl font-black text-slate-900 tracking-tight">My Subscriptions</h2>
+          
+          <div class="flex items-center gap-3">
+            <div class="relative min-w-[160px]">
+              <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <svg class="h-3.5 w-3.5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+              </div>
+
+              <select
+                v-model="sortConfig"
+                class="w-full bg-white text-[11px] font-bold text-slate-700 pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all cursor-pointer appearance-none"
               >
+                <option value="createdAt_desc">Newest First</option>
+                <option value="renewalDate_asc">Soonest Renewal</option>
+                <option value="name_asc">Name: A-Z</option>
+              </select>
+
+              <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                <svg class="h-3.5 w-3.5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
-          </div>
+
+          <span class="text-[11px] font-black uppercase tracking-wider text-slate-400 bg-slate-100/50 px-3 py-2.5 rounded-xl border border-slate-200/50">
+            {{ totalCount }} <span class="opacity-60">total</span>
+          </span>
+        </div>
+        </div>
 
           <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div

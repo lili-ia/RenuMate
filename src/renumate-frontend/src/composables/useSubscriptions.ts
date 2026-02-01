@@ -1,8 +1,7 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import api from '@/api'
 import type { PaginatedResponse, Subscription, Tag } from '@/types'
 import { toast } from 'vue3-toastify'
-
 
 interface SubscriptionForm {
   id?: string
@@ -44,6 +43,13 @@ export function useSubscriptions() {
   const activeSubscriptionsCount = ref<number>(0)
   const activeRemindersCount = ref<number>(0)
   const projectedCost = ref<number>(0)
+
+  const sortConfig = ref<string>('createdAt_desc'); 
+
+  watch([sortConfig], () => {
+    currentPage.value = 1;
+    loadSubscriptions();
+  });
 
   const popularCurrencies = [
     { code: 'USD', name: 'US Dollar', symbol: '$' },
@@ -91,17 +97,22 @@ export function useSubscriptions() {
   const loadSubscriptions = async () => {
     loading.value = true
     try {
-      const response = await api.get<PaginatedResponse<Subscription>>('/subscriptions', {
-        params: {
-          page: currentPage.value,
-          pageSize: pageSize.value,
-        },
-      })
+      const [sortBy, sortOrder] = sortConfig.value.split('_');
+    
+      const params = {
+        page: currentPage.value,
+        pageSize: pageSize.value,
+        sortBy: sortBy,
+        sortOrder: sortOrder
+      };
+
+      const response = await api.get<PaginatedResponse<Subscription>>('/subscriptions', { params })
       
       subscriptions.value = response.data.items
       totalCount.value = response.data.totalCount
       totalPages.value = response.data.totalPages
       currentPage.value = response.data.page
+
     } catch (error) {
       toast.error('Failed to load subscriptions')
       subscriptions.value = []
@@ -344,5 +355,6 @@ export function useSubscriptions() {
     showDeleteConfirm,
     subToDelete,
     projectedCost,
+    sortConfig,
   }
 }

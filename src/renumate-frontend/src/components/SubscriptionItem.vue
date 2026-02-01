@@ -32,27 +32,37 @@ import ReminderItem from './ReminderItem.vue'
   >
     <div class="relative z-10">
       <div class="flex gap-4 items-center mb-5">
-        <div class="relative group">
-          <div v-if="sub.picLink" class="relative z-10">
-            <img
-              :src="sub.picLink"
-              alt="Sub logo"
-              class="w-14 h-14 rounded-2xl object-cover shadow-sm border border-white transition-transform group-hover:scale-105"
-            />
-          </div>
-          <div
-            v-else
-            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-inner"
-          >
-            {{ sub.name.charAt(0).toUpperCase() }}
-          </div>
-          <div
-            v-if="sub.plan === 'Trial'"
-            class="absolute -top-2 -right-2 bg-amber-400 z-20 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-sm border-2 border-white uppercase tracking-tighter"
-          >
-            Trial
-          </div>
+      <component 
+        :is="sub.cancelLink ? 'a' : 'div'"
+        :href="sub.cancelLink || null" 
+        :target="sub.cancelLink ? '_blank' : null" 
+        :rel="sub.cancelLink ? 'noopener' : null"
+        class="relative group block"
+        :class="{ 'cursor-pointer': sub.cancelLink, 'cursor-default': !sub.cancelLink }"
+      >
+        <div v-if="sub.picLink" class="relative z-10">
+          <img
+            :src="sub.picLink"
+            alt="Sub logo"
+            class="w-14 h-14 rounded-2xl object-cover shadow-sm border border-white transition-transform"
+            :class="{ 'group-hover:scale-105': sub.cancelLink }"
+          />
         </div>
+        
+        <div
+          v-else
+          class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-inner"
+        >
+          {{ sub.name.charAt(0).toUpperCase() }}
+        </div>
+
+        <div
+          v-if="sub.plan === 'Trial'"
+          class="absolute -top-2 -right-2 bg-amber-400 z-20 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg shadow-sm border-2 border-white uppercase tracking-tighter"
+        >
+          Trial
+        </div>
+      </component>
 
         <div class="flex-1 min-w-0">
           <h3 class="text-lg font-black text-slate-900 truncate tracking-tight">{{ sub.name }}</h3>
