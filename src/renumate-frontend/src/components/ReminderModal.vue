@@ -11,7 +11,6 @@ defineProps({
 })
 
 defineEmits(['close', 'save'])
-import IconSpinner from './icons/IconSpinner.vue'
 </script>
 
 <template>
@@ -39,6 +38,25 @@ import IconSpinner from './icons/IconSpinner.vue'
         </div>
 
         <div class="p-8 space-y-6">
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+            <div class="flex items-start gap-3">
+              <div class="mt-1 bg-white p-1.5 rounded-lg shadow-sm">
+                <i class="pi pi-envelope text-indigo-500 text-xs"></i>
+              </div>
+              <div class="space-y-1">
+                <p class="text-xs font-bold text-slate-700">How it works</p>
+                <p class="text-[11px] leading-relaxed text-slate-500">
+                  We'll send a reminder to your **email address** so you can:
+                </p>
+                <ul class="text-[11px] text-slate-500 space-y-0.5 list-disc ml-3 mt-1">
+                  <li>Avoid surprise auto-renewals</li>
+                  <li>Cancel unwanted services on time</li>
+                  <li>Balance your budget beforehand</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label
               class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 block ml-1"
@@ -80,7 +98,7 @@ import IconSpinner from './icons/IconSpinner.vue'
             <p
               class="text-[10px] text-slate-400 mt-2 ml-1 leading-tight uppercase font-bold tracking-tight"
             >
-              Best time to catch your attention.
+              Set the best time to receive your alert.
             </p>
           </div>
 

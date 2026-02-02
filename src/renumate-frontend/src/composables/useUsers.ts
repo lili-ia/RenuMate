@@ -9,7 +9,7 @@ export function useUsers() {
 
   const toastConfig: ToastOptions = {
     autoClose: 3000,
-    position: 'top-right',
+    position: 'bottom-right',
   }
 
   const isProcessing = ref(false)

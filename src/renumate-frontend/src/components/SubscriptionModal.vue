@@ -1,9 +1,9 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import IconSpinner from './icons/IconSpinner.vue'
 import DatePicker from 'primevue/datepicker';
 import MultiSelect from 'primevue/multiselect';
 import { useTags } from '@/composables/useTags';
+import Select from 'primevue/select';
 
 const { tags, fetchTags } = useTags();
 
@@ -46,15 +46,28 @@ const currencies = [
   'ZAR',
 ]
 
-defineEmits(['close', 'save'])
+const emit = defineEmits(['close', 'save'])
 
 const formattedCost = ref('')
+
+const touched = ref({ name: false, cost: false, startDate: false });
+
+const resetTouched = () => {
+  touched.value = {
+    name: false,
+    cost: false,
+    startDate: false,
+  };
+};
 
 watch(
   () => props.isOpen,
   (newVal) => {
     if (newVal) {
       formattedCost.value = props.modelValue?.cost?.toString().replace('.', ',') || ''
+      resetTouched()
+    } else {
+      resetTouched();
     }
   },
   { immediate: true }
@@ -83,6 +96,23 @@ const setToday = () => {
 onMounted(() => {
   fetchTags()
 })
+
+const handleSave = () => {
+  touched.value = {
+    name: true,
+    cost: true,
+    startDate: true,
+  };
+
+  const isValid = props.modelValue.name && 
+                  props.modelValue.cost !== undefined && 
+                  props.modelValue.cost !== null &&
+                  props.modelValue.startDate;
+
+  if (isValid) {
+    emit('save');
+  }
+};
 
 </script>
 
@@ -121,12 +151,18 @@ onMounted(() => {
             <div class="md:col-span-2">
               <label
                 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 block ml-1"
-                >Service Name</label
+                >Service Name <span class="text-red-500">*</span></label
               >
               <input
                 v-model="modelValue.name"
+                @blur="touched.name = true"
                 type="text"
-                class="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 placeholder:text-slate-300 shadow-sm"
+                class="w-full px-5 py-3.5 bg-slate-50 border-1 rounded-2xl transition-all text-slate-900 placeholder:text-slate-300 shadow-sm outline-none"
+                :class="[
+                  (touched.name && !modelValue.name) 
+                    ? 'border-red-500 focus:ring-red-500' 
+                    : 'border-transparent focus:ring-indigo-500'
+                ]"
                 placeholder="e.g. Netflix, ChatGPT, Spotify"
               />
               <p v-if="errors.Name" class="mt-2 text-xs text-red-500 flex items-center gap-1">
@@ -138,16 +174,23 @@ onMounted(() => {
             <div>
               <label
                 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 block ml-1"
-                >{{ modelValue.plan === 'Trial' ? 'Post-Trial' : '' }} Cost</label
+                >{{ modelValue.plan === 'Trial' ? 'Post-Trial' : '' }} Cost <span class="text-red-500">*</span></label
               >
               <div class="relative">
                 <input
                   :value="formattedCost"
+                  @blur="touched.cost = true"
                   @input="handleCostInput"
                   type="text"
+                  required
                   inputmode="decimal"
                   placeholder="0,00"
-                  class="w-full pl-5 pr-12 py-3.5 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono font-bold"
+                  class="w-full pl-5 pr-12 py-3.5 bg-slate-50 border-1 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
+                  :class="[
+                    (touched.cost && !modelValue.cost) 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-transparent focus:ring-indigo-500'
+                    ]"
                 />
                 <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
                   {{ modelValue.currency }}
@@ -184,7 +227,7 @@ onMounted(() => {
                 >
                 <select
                   v-model="modelValue.plan"
-                  class="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                  class="w-full px-4 py-3 bg-white border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all"
                 >
                   <option value="Trial">Free Trial</option>
                   <option value="Monthly">Monthly</option>
@@ -197,10 +240,31 @@ onMounted(() => {
               <div>
                 <label
                   class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2 block ml-1"
-                  >Start Date</label
+                  >Start Date <span class="text-red-500">*</span></label
                 >
-                <DatePicker v-model="modelValue.startDate" dateFormat="dd/mm/yy" inputClass="rounded-lg" showIcon></DatePicker>
-               
+                <DatePicker 
+                  v-model="modelValue.startDate" 
+                  :invalid="touched.startDate && !modelValue.startDate" 
+                  @hide="touched.startDate = true"
+                  date-format="dd/mm/yy" 
+                  show-icon
+                  class="w-full"
+                  panel-class="!bg-white !rounded-3xl !shadow-2xl !p-4 !border-0" 
+                  :input-class="[
+                    '!w-full !px-4 !py-3 !rounded-2xl !border-1 !transition-all !bg-white !text-slate-900 !font-medium',
+                    (touched.startDate && !modelValue.startDate) 
+                      ? '!border-red-500 !focus:ring-red-500' 
+                      : '!border-slate-100 !focus:ring-indigo-500'
+                  ]"
+                  :pt="{
+                      pcDropdown: {
+                          root: { class: '!text-indigo-500 !p-0 !mr-4' }
+                      },
+                      pcInput: {
+                          root: { class: 'focus:!ring-2' }
+                      }
+                  }"
+                /> 
                 <p v-if="errors.StartDate" class="mt-2 text-xs text-red-500 flex items-center gap-1">
                   <span class="w-1 h-1 bg-red-500 rounded-full inline-block"></span>
                   {{ errors.StartDate[0] }}
@@ -263,48 +327,53 @@ onMounted(() => {
               v-model="modelValue.tags"
               :options="tags"
               dataKey="id"
-              filter optionLabel="name"
+              filter 
+              optionLabel="name"
               showClear
               placeholder="Select tags"
-              class="w-full custom-multiselect"
+              class="custom-multiselect"
+              panel-class="custom-multiselect-panel"
               display="chip"
+              :pt="{
+                root: { class: '!rounded-2xl !border-2 !border-slate-100 !bg-white !px-2 !py-1' },
+                labelContainer: { class: '!p-1' },
+                label: { class: '!p-0 !flex !flex-wrap !gap-1' }, 
+                token: { class: '!p-0 !bg-transparent !border-none !m-0' }, 
+                pcClearButton: { root: { class: '!mr-2' } }
+              }"
             >
-              <template #chip="slotProps">
+            <template #chip="slotProps">
+              <div 
+                class="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all group"
+                :style="{ 
+                  backgroundColor: slotProps.value.color + '15', 
+                  borderColor: slotProps.value.color + '40' 
+                }"
+              >
                 <div 
-                  class="flex items-center gap-2 px-2 py-0.5 rounded-lg border mr-1 transition-all hover:pr-1 group"
-                  :style="{ 
-                    backgroundColor: slotProps.value.color + '15', 
-                    borderColor: slotProps.value.color + '40' 
-                  }"
+                  class="w-2 h-2 rounded-full" 
+                  :style="{ backgroundColor: slotProps.value.color }"
+                ></div>
+                <span class="text-xs font-bold" :style="{ color: slotProps.value.color }">
+                  {{ slotProps.value.name }}
+                </span>
+                <button 
+                  type="button"
+                  @click.stop="slotProps.removeCallback($event)"
+                  class="ml-1 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
                 >
-                  <div 
-                    class="w-1.5 h-1.5 rounded-full" 
-                    :style="{ backgroundColor: slotProps.value.color }"
-                  ></div>
-                  
-                  <span class="text-[11px] font-bold" :style="{ color: slotProps.value.color }">
-                    {{ slotProps.value.name }}
-                  </span>
+                  <i class="pi pi-times" :style="{ color: slotProps.value.color, fontSize: '0.875rem' }"></i>
+                </button>
+              </div>
+            </template>
 
-                  <button 
-                    type="button"
-                    @click.stop="slotProps.removeCallback($event)"
-                    class="flex items-center justify-center w-4 h-4 rounded-md hover:bg-black/5 transition-colors cursor-pointer"
-                  >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      class="h-3 w-3" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                      :style="{ stroke: slotProps.value.color }"
-                    >
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </template>
-            </MultiSelect>
+            <template #option="slotProps">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: slotProps.option.color }"></div>
+                <span class="font-medium text-slate-700">{{ slotProps.option.name }}</span>
+              </div>
+            </template>
+          </MultiSelect>
           </div>
           <div class="space-y-4">
             <div class="group">
@@ -316,7 +385,7 @@ onMounted(() => {
                 v-model="modelValue.picLink"
                 type="url"
                 class="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
-                placeholder="https://..."
+                placeholder="https://icons/netflix.png..."
               />
             </div>
             <div class="group">
@@ -328,7 +397,7 @@ onMounted(() => {
                 v-model="modelValue.cancelLink"
                 type="url"
                 class="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
-                placeholder="https://..."
+                placeholder="www.netflix.com/account/membership"
               />
             </div>
 
@@ -340,6 +409,7 @@ onMounted(() => {
               <textarea
                 v-model="modelValue.note"
                 rows="2"
+                placeholder="Kate has to transfer me half of this subscription fee... I have to feed my dog at exactly the time when the subscription reminder comes..."
                 class="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none resize-none"
               ></textarea>
             </div>
@@ -348,11 +418,12 @@ onMounted(() => {
 
         <div class="p-8 bg-slate-50/80 backdrop-blur-sm flex gap-4">
           <button
-            @click="$emit('save')"
+            @click="handleSave"
             :disabled="isSubmitting"
             class="flex-[2] bg-indigo-600 text-white py-4 rounded-2xl hover:bg-indigo-700 active:scale-[0.98] transition-all font-bold shadow-lg shadow-indigo-200 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
-            <IconSpinner v-if="isSubmitting" class="h-5 w-5" />
+            <i v-if="isSubmitting" class="pi pi-spinner animate-spin text-lg"></i>
+            
             {{ isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Subscription' }}
           </button>
           <button
@@ -398,4 +469,5 @@ input::-webkit-inner-spin-button {
   background: #e2e8f0;
   border-radius: 10px;
 }
+
 </style>

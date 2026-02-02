@@ -213,6 +213,7 @@ public class Subscription : BaseEntity
         }
         
         var maxDays = GetPlanDurationInDays();
+        
         if (daysBeforeRenewal >= maxDays)
         {
             throw new DomainValidationException(

@@ -29,7 +29,7 @@ export function useReminders(
 
   const toastConfig: ToastOptions = {
     autoClose: 3000,
-    position: 'top-right',
+    position: 'bottom-right',
   }
   
   const showDeleteReminderConfirm = ref(false)

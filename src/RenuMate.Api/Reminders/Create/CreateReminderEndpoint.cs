@@ -48,6 +48,7 @@ public abstract class CreateReminderEndpoint : IEndpoint
         var subscription = await db.Subscriptions
             .Where(s => s.Id == request.SubscriptionId && s.UserId == userId)
             .Include(s => s.Reminders)
+                .ThenInclude(r => r.ReminderOccurrences)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (subscription is null)
@@ -69,12 +70,12 @@ public abstract class CreateReminderEndpoint : IEndpoint
             subscription.AddReminderRule(notifyTime, request.DaysBeforeRenewal, now);
             await db.SaveChangesAsync(cancellationToken);
 
-            var newRule = subscription.Reminders.Last();
-            var occurrenceScheduledAt = newRule.ReminderOccurrences.Last().ScheduledAt;
-
-            logger.LogInformation("User {UserId} successfully created reminder {ReminderId} for subscription {SubId}." +
-                                  "New reminder occurrence was set to {ScheduledAt}",
-                userId, newRule.Id, request.SubscriptionId, occurrenceScheduledAt);
+            var newRule = subscription.Reminders
+                .OrderByDescending(r => r.CreatedAt)
+                .First();
+            
+            logger.LogInformation("User {UserId} successfully created reminder {ReminderId} for subscription {SubId}.",
+                userId, newRule.Id, request.SubscriptionId);
             
             return Results.Ok(new CreateReminderResponse
             (

@@ -82,7 +82,7 @@ export function useSubscriptions() {
   const formData = ref<SubscriptionForm>({
     name: '',
     cost: '',
-    currency: 'UAH',
+    currency: 'EUR',
     plan: 'Monthly',
     customPeriodInDays: null,
     trialPeriodInDays: null,
@@ -211,7 +211,7 @@ export function useSubscriptions() {
     formData.value = {
       name: '',
       cost: '',
-      currency: 'UAH',
+      currency: 'EUR',
       plan: 'Monthly',
       customPeriodInDays: null,
       trialPeriodInDays: null,
