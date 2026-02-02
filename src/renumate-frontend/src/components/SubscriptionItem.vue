@@ -15,10 +15,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['edit', 'delete', 'toggle-mute', 'add-reminder', 'delete-reminder'])
-import IconActive from './icons/IconActive.vue'
-import IconMuted from './icons/IconMuted.vue'
-import IconEdit from './icons/IconEdit.vue'
-import IconTrash from './icons/IconTrash.vue'
 import ReminderItem from './ReminderItem.vue'
 </script>
 
@@ -79,17 +75,18 @@ import ReminderItem from './ReminderItem.vue'
         <div class="flex gap-1 self-start">
           <button
             @click="$emit('edit', sub)"
-            class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+            class="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
             title="Edit"
           >
-            <IconEdit class="w-5 h-5" />
+            <i class="pi pi-pen-to-square" style="font-size: 1rem"></i>
           </button>
+
           <button
             @click="$emit('delete', sub.id)"
-            class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+            class="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
             title="Delete"
           >
-            <IconTrash class="w-5 h-5" />
+            <i class="pi pi-trash" style="font-size: 1rem"></i>
           </button>
         </div>
       </div>
@@ -165,11 +162,21 @@ import ReminderItem from './ReminderItem.vue'
                 : 'bg-slate-100 text-slate-400 hover:bg-slate-200',
             ]"
           >
-            <component
-              :is="sub.isMuted ? IconMuted : IconActive"
-              class="w-3.5 h-3.5 transition-transform group-hover:scale-110"
-            />
-            {{ !sub.isMuted ? 'Active' : 'Muted' }}
+            <i
+              :class="[
+                'pi transition-all duration-300 transform group-hover:scale-110',
+                !sub.isMuted 
+                  ? 'pi-volume-up text-emerald-500' 
+                  : 'pi-volume-off text-slate-400'
+              ]"
+              style="font-size: 0.875rem"
+            ></i>
+            <span 
+              class="ml-1 transition-colors duration-300"
+              :class="!sub.isMuted ? 'text-slate-700' : 'text-slate-400'"
+            >
+              {{ !sub.isMuted ? 'Active' : 'Muted' }}
+            </span>
           </button>
 
           <button

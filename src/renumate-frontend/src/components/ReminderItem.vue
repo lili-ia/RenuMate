@@ -6,7 +6,7 @@
       <div
         class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
       >
-        <IconBell class="w-5 h-5 text-indigo-600" />
+        <i class="pi pi-bell w-5 h-5 text-indigo-600"></i>
       </div>
 
       <div class="flex flex-col min-w-0">
@@ -23,20 +23,7 @@
         </div>
 
         <p class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-3 w-3"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
+          <i class="pi pi-calendar-clock" style="font-size: 0.75rem"></i>
           {{ reminder.isSent ? 'Last' : 'Next' }} alert:
           <span class="font-semibold text-slate-500">{{
             formatDateTime(reminder.nextReminder, false)
@@ -49,18 +36,15 @@
 
     <button
       @click="$emit('delete', reminder.id)"
-      class="ml-2 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200 cursor-pointer opacity-0 group-hover:opacity-100"
+      class="ml-2 w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200 cursor-pointer opacity-0 group-hover:opacity-100 border border-transparent"
       title="Remove reminder"
     >
-      <IconTrash class="w-4 h-4" />
+      <i class="pi pi-trash" style="font-size: 0.85rem"></i>
     </button>
   </div>
 </template>
 
 <script setup>
-import IconBell from './icons/IconBell.vue'
-import IconTrash from './icons/IconTrash.vue'
-
 defineProps({
   reminder: Object,
   formatTime: Function,

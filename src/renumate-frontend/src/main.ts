@@ -7,6 +7,7 @@ import Vue3Toastify, { type ToastContainerOptions } from 'vue3-toastify'
 import router from './router'
 import PrimeVue from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
+import 'primeicons/primeicons.css'
 
 import App from './App.vue'
 

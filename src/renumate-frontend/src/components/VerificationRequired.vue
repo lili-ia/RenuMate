@@ -3,7 +3,6 @@ import { ref, onUnmounted, onMounted } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { useUsers } from '@/composables/useUsers'
 import { toast } from 'vue3-toastify'
-import IconDollar from '@/components/icons/IconDollar.vue'
 import { useRouter } from 'vue-router'
 
 const COOLDOWN_KEY = 'verification_cooldown_end';
@@ -111,7 +110,7 @@ onUnmounted(() => {
   <div v-else class="min-h-screen bg-slate-50 flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-slate-100 text-center">
       <div class="w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-        <IconDollar class="w-10 h-10 text-amber-600" />
+        <i class="pi pi-dollar text-3xl text-amber-600"></i>
       </div>
 
       <h1 class="text-2xl font-black text-slate-900 mb-2">Verify your email</h1>
@@ -123,9 +122,7 @@ onUnmounted(() => {
       <Transition name="fade">
         <div v-if="user?.email_verified" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
           <div class="animate-bounce bg-green-100 p-6 rounded-full mb-6">
-            <svg class="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-            </svg>
+            <i class="pi pi-check text-green-600 font-bold" style="font-size: 4rem"></i>
           </div>
           <h2 class="text-3xl font-black text-slate-900 mb-2">Email Verified!</h2>
           <p class="text-slate-500 text-lg">Everything is ready. Redirecting you now...</p>

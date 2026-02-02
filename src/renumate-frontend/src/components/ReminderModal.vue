@@ -32,20 +32,7 @@ import IconSpinner from './icons/IconSpinner.vue'
           <div
             class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-8 w-8"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-              />
-            </svg>
+            <i class="pi pi-bell" style="font-size: 2rem"></i>
           </div>
           <h2 class="text-2xl font-black text-slate-900 tracking-tight">Add Reminder</h2>
           <p class="text-slate-500 text-sm mt-1 italic">for {{ subscription.name }}</p>
@@ -103,7 +90,7 @@ import IconSpinner from './icons/IconSpinner.vue'
               :disabled="isSubmitting"
               class="w-full bg-indigo-600 text-white py-4 rounded-2xl hover:bg-indigo-700 active:scale-[0.98] transition-all font-bold shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <IconSpinner v-if="isSubmitting" class="h-5 w-5" />
+              <i v-if="isSubmitting" class="pi pi-spinner pi-spin text-lg"></i>
               {{ isSubmitting ? 'Setting alert...' : 'Confirm Reminder' }}
             </button>
             <button

@@ -16,20 +16,7 @@
         <div
           class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-10 w-10"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
+          <i class="pi pi-check-circle" style="font-size: 2.5rem"></i>
         </div>
         <h2 class="text-2xl font-bold text-gray-800 mb-2">Account Restored!</h2>
         <p class="text-gray-600 mb-6">
@@ -45,20 +32,7 @@
         <div
           class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-10 w-10"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          <i class="pi pi-times-circle" style="font-size: 2.5rem"></i>
         </div>
         <h2 class="text-2xl font-bold text-gray-800 mb-2">Invalid Link</h2>
         <p class="text-gray-600 mb-6">This reactivation link is invalid or has expired.</p>

@@ -4,16 +4,12 @@ import { useAuth0 } from '@auth0/auth0-vue'
 import SubscriptionModal from '@/components/SubscriptionModal.vue'
 import ReminderModal from '@/components/ReminderModal.vue'
 import StatCard from '@/components/StatCard.vue'
-import IconBell from '@/components/icons/IconBell.vue'
-import IconCalendar from '@/components/icons/IconCalendar.vue'
-import SubscriptionItem from '@/components/SubscriptionItem.vue'
-import SubscriptionEmptyState from '@/components/SubscriptionEmptyState.vue'
 import { formatDateTime, localNotifyTime } from '@/utils/formatters.ts'
+import SubscriptionItem from '@/components/SubscriptionItem.vue'
 import { useSubscriptions } from '@/composables/useSubscriptions'
 import { useReminders } from '@/composables/useReminders'
 import { useUsers } from '@/composables/useUsers'
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue'
-import MultiSelect from 'primevue/multiselect'
 
 const {
   subscriptions,
@@ -89,7 +85,7 @@ watch(
 watch([selectedCurrency, selectedPeriod], fetchSummary)
 </script>
 <template>
-  <div class="min-h-screen bg-slate-50/50">
+  <div class="min-h-screen bg-slate-50/50 rounded-3xl">
     <div
       v-if="isLoading"
       class="min-h-screen flex items-center justify-center p-4 bg-white/80 backdrop-blur-md fixed inset-0 z-[100]"
@@ -117,22 +113,13 @@ watch([selectedCurrency, selectedPeriod], fetchSummary)
         </div>
         <button
           @click="openAddSubscriptionModal"
-          class="group flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-4 rounded-2xl hover:bg-indigo-600 hover:shadow-2xl hover:shadow-indigo-200 transition-all duration-300 font-bold active:scale-95 shadow-xl shadow-slate-200 cursor-pointer"
+          class="group flex items-center justify-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-[1.25rem] hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-200 transition-all duration-300 font-bold active:scale-95 shadow-xl shadow-slate-200 cursor-pointer"
         >
-          <svg
-            class="w-5 h-5 group-hover:rotate-90 transition-transform duration-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Add Subscription
+          <span class="flex items-center justify-center w-5 h-5">
+            <i class="pi pi-plus text-base group-hover:scale-125 transition-transform duration-300"></i>
+          </span>
+          
+          <span class="leading-none">Add Subscription</span>
         </button>
       </div>
 
@@ -152,7 +139,7 @@ watch([selectedCurrency, selectedPeriod], fetchSummary)
             </p></template
           >
           <template #right>
-            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><IconBell /></div>
+            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><i class="pi pi-bell" style="font-size: 2rem"></i></div>
           </template>
         </StatCard>
 
@@ -209,7 +196,7 @@ watch([selectedCurrency, selectedPeriod], fetchSummary)
             </p></template
           >
           <template #right>
-            <div class="p-3 bg-rose-50 text-rose-500 rounded-2xl"><IconCalendar /></div>
+            <div class="p-3 bg-rose-50 text-rose-500 rounded-2xl"><i class="pi pi-calendar" style="font-size: 2rem"></i></div>
           </template>
         </StatCard>
       </div>
@@ -224,9 +211,7 @@ watch([selectedCurrency, selectedPeriod], fetchSummary)
           <div class="flex items-center gap-3">
             <div class="relative min-w-[160px]">
               <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <svg class="h-3.5 w-3.5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-                </svg>
+                <i class="pi pi-sort text-slate-400 text-sm"></i>
               </div>
 
               <select
@@ -239,9 +224,7 @@ watch([selectedCurrency, selectedPeriod], fetchSummary)
               </select>
 
               <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                <svg class="h-3.5 w-3.5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
+                <i class="pi pi-chevron-down text-slate-400 text-sm"></i>
               </div>
             </div>
 
@@ -251,18 +234,33 @@ watch([selectedCurrency, selectedPeriod], fetchSummary)
         </div>
         </div>
 
-          <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div v-if="loading && subscriptions.length === 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div
               v-for="i in 4"
               :key="i"
-              class="h-48 bg-white/50 animate-pulse rounded-[2rem] border border-slate-100"
-            ></div>
+              class="h-[180px] bg-slate-50 animate-pulse rounded-[2.5rem] border border-slate-100 flex flex-col p-6 gap-4"
+            >
+              <div class="flex justify-between">
+                <div class="w-12 h-12 bg-slate-200 rounded-2xl"></div>
+                <div class="w-20 h-6 bg-slate-200 rounded-lg"></div>
+              </div>
+              <div class="w-3/4 h-8 bg-slate-200 rounded-xl"></div>
+              <div class="w-1/2 h-6 bg-slate-200 rounded-lg"></div>
+            </div>
           </div>
 
-          <SubscriptionEmptyState v-else-if="subscriptions.length === 0" />
+          <template v-else-if="subscriptions.length === 0">
+            <div class="text-center py-12 text-gray-500">
+              <i 
+                class="pi pi-dollar mx-auto mb-4 opacity-20 block" 
+                style="font-size: 4rem"
+              ></i>
+              <p class="font-medium">No subscriptions yet. Add your first one!</p>
+            </div>
+          </template>
 
           <div v-else class="space-y-6">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="columns-1 lg:columns-2 gap-6 space-y-6">
               <SubscriptionItem
                 v-for="sub in subscriptions"
                 :key="sub.id"
@@ -274,6 +272,7 @@ watch([selectedCurrency, selectedPeriod], fetchSummary)
                 @toggle-mute="toggleActive"
                 @add-reminder="openReminderModal"
                 @delete-reminder="openDeleteReminderModal"
+                class="break-inside-avoid-column"
               />
             </div>
 

@@ -115,12 +115,16 @@ onUnmounted(() => {
             ]"></div>
             <div class="relative bg-white rounded-3xl w-full h-full flex items-center justify-center shadow-sm border border-slate-100">
               <Transition name="scale" mode="out-in">
-                <svg v-if="isSent" key="sent" class="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <svg v-else key="lock" class="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+                <i 
+                  v-if="isSent" 
+                  key="sent" 
+                  class="pi pi-envelope text-[2.5rem] text-emerald-500"
+                ></i>
+                <i 
+                  v-else 
+                  key="lock" 
+                  class="pi pi-lock text-[2.5rem] text-indigo-600"
+                ></i>
               </Transition>
             </div>
           </div>
