@@ -13,6 +13,7 @@ export interface Subscription {
   currency: string
   plan: string
   customPeriodInDays: number | null
+  trialPeriodInDays: number | null
   startDate: string
   renewalDate: Date
   daysLeft: number

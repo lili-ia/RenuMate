@@ -7,6 +7,7 @@ public record SubscriptionDto(
     string Name,
     SubscriptionPlan Plan,
     int? CustomPeriodInDays,
+    int? TrialPeriodInDays,
     DateOnly StartDate,
     DateOnly RenewalDate,
     decimal Cost,

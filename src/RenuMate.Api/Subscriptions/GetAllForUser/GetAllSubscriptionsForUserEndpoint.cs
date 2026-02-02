@@ -66,7 +66,6 @@ public abstract class GetAllSubscriptionsForUserEndpoint : IEndpoint
             .Take(request.PageSize)
             .Select(SubscriptionMapper.ProjectToDetailsDto)
             .ToListAsync(cancellationToken);
-        
 
         var result = new PaginatedResponse<SubscriptionDetailsDto>
         (

@@ -40,7 +40,12 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
             .NotEqual(DateOnly.FromDateTime(DateTime.MinValue)).WithMessage("Start date is required.");
 
         RuleFor(x => x.Cost)
-            .GreaterThanOrEqualTo(0).WithMessage("Cost must be non-negative.");
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("Cost must be non-negative.")
+            .LessThanOrEqualTo(99999999.99m)
+            .WithMessage("Cost is too high. Maximum allowed is 99,999,999.99.")
+            .PrecisionScale(10, 2, ignoreTrailingZeros: true)
+            .WithMessage("Cost cannot have more than 2 decimal places.");;
 
         RuleFor(x => x.Currency)
             .NotEmpty().WithMessage("Currency is required.")

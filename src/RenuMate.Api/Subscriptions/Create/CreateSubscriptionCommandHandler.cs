@@ -64,6 +64,7 @@ public class CreateSubscriptionCommandHandler(
                 subscription.Id,
                 subscription.Name,
                 subscription.RenewalDate,
+                subscription.Plan,
                 $"{subscription.Cost}{subscription.Currency}",
                 TagIds: request.TagIds,
                 subscription.Note,

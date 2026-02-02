@@ -7,6 +7,7 @@ public sealed record SubscriptionDetailsDto(
     string Name,
     SubscriptionPlan Plan,
     int? CustomPeriodInDays,
+    int? TrialPeriodInDays,
     DateOnly StartDate,
     DateOnly RenewalDate,
     decimal Cost,
@@ -17,4 +18,5 @@ public sealed record SubscriptionDetailsDto(
     string? PicLink,
     List<ReminderDto> Reminders,
     List<TagDto> Tags
-) : SubscriptionDto(Id, Name, Plan, CustomPeriodInDays, StartDate, RenewalDate, Cost, Currency, IsMuted, Note, CancelLink, PicLink);
+) : SubscriptionDto(
+    Id, Name, Plan, CustomPeriodInDays, TrialPeriodInDays, StartDate, RenewalDate, Cost, Currency, IsMuted, Note, CancelLink, PicLink);

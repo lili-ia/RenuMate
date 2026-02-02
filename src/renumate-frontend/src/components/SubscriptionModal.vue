@@ -3,7 +3,6 @@ import { onMounted, ref, watch } from 'vue'
 import DatePicker from 'primevue/datepicker';
 import MultiSelect from 'primevue/multiselect';
 import { useTags } from '@/composables/useTags';
-import Select from 'primevue/select';
 
 const { tags, fetchTags } = useTags();
 
@@ -89,6 +88,17 @@ const handleCostInput = (event) => {
   props.modelValue.cost = isNaN(numericValue) ? 0 : numericValue
 }
 
+const onBlurCost = () => {
+  touched.value.cost = true 
+
+  if (props.modelValue.cost) {
+    const rounded = Math.round(props.modelValue.cost * 100) / 100
+    
+    props.modelValue.cost = rounded
+    formattedCost.value = rounded.toString().replace('.', ',')
+  }
+}
+
 const setToday = () => {
   props.modelValue.startDate = new Date()
 }
@@ -109,9 +119,7 @@ const handleSave = () => {
                   props.modelValue.cost !== null &&
                   props.modelValue.startDate;
 
-  if (isValid) {
-    emit('save');
-  }
+  emit('save');
 };
 
 </script>
@@ -179,12 +187,14 @@ const handleSave = () => {
               <div class="relative">
                 <input
                   :value="formattedCost"
-                  @blur="touched.cost = true"
+                  @blur="onBlurCost"
                   @input="handleCostInput"
                   type="text"
                   required
                   inputmode="decimal"
                   placeholder="0,00"
+                  step="0.01"
+                  maxlength="11"
                   class="w-full pl-5 pr-12 py-3.5 bg-slate-50 border-1 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
                   :class="[
                     (touched.cost && !modelValue.cost) 
@@ -293,15 +303,22 @@ const handleSave = () => {
               >
                 {{ modelValue.plan === 'Trial' ? 'Trial Duration (Days)' : 'Every X Days' }}
               </label>
-              <input
-                v-model="
-                  modelValue[
-                    modelValue.plan === 'Trial' ? 'trialPeriodInDays' : 'customPeriodInDays'
-                  ]
-                "
-                type="number"
-                class="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-indigo-500 shadow-sm"
-              />
+              <div v-if="modelValue.plan === 'Trial'">
+                <input
+                  v-model.number="modelValue.trialPeriodInDays"
+                  type="number"
+                  min="1"
+                  class="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                />
+              </div>
+              <div v-if="modelValue.plan === 'Custom'">
+                <input
+                  v-model.number="modelValue.customPeriodInDays"
+                  type="number"
+                  min="1"
+                  class="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                />
+              </div>
               <p
                 v-if="errors.TrialPeriodInDays"
                 class="mt-2 text-xs text-red-500 flex items-center gap-1"

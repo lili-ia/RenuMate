@@ -84,8 +84,8 @@ export function useSubscriptions() {
     cost: '',
     currency: 'EUR',
     plan: 'Monthly',
-    customPeriodInDays: null,
-    trialPeriodInDays: null,
+    customPeriodInDays: 30,
+    trialPeriodInDays: 7,
     startDate: null,
     tags: [],
     note: '',
@@ -136,8 +136,8 @@ export function useSubscriptions() {
       cost: sub.cost,
       currency: sub.currency,
       plan: sub.plan,
-      customPeriodInDays: sub.customPeriodInDays || null,
-      trialPeriodInDays: sub.plan === 'Trial' ? sub.customPeriodInDays || null : null,
+      customPeriodInDays: sub.customPeriodInDays || 30,
+      trialPeriodInDays: sub.plan === 'Trial' ? sub.trialPeriodInDays || 7 : null,
       startDate: sub.startDate ? new Date(sub.startDate) : null,
       tags: sub.tags || [],
       note: sub.note ?? '',
@@ -153,29 +153,33 @@ export function useSubscriptions() {
     if (!formData.value.startDate || !formData.value.plan) return ''
 
     const plan = formData.value.plan.toLowerCase()
-
     const start = new Date(formData.value.startDate)
     start.setHours(0, 0, 0, 0)
 
     const now = new Date()
     now.setHours(0, 0, 0, 0)
 
-    const next = start
+    const next = new Date(start) 
 
     if (plan === 'trial') {
-      const trialDays = formData.value.trialPeriodInDays || 7
+      const trialDays = Number(formData.value.trialPeriodInDays) || 7
       next.setDate(next.getDate() + trialDays)
-      console.log('Trial period, next date set to:', next)
     } else {
-      while (next <= now) {
+      if (plan === 'custom' && (!formData.value.customPeriodInDays || formData.value.customPeriodInDays <= 0)) {
+        return ''
+      }
+
+      let iterations = 0
+      while (next <= now && iterations < 1000) {
+        iterations++
         if (plan === 'monthly') {
           next.setMonth(next.getMonth() + 1)
         } else if (plan === 'quarterly') {
           next.setMonth(next.getMonth() + 3)
         } else if (plan === 'annual') {
           next.setFullYear(next.getFullYear() + 1)
-        } else if (plan === 'custom' && formData.value.customPeriodInDays) {
-          next.setDate(next.getDate() + formData.value.customPeriodInDays)
+        } else if (plan === 'custom') {
+          next.setDate(next.getDate() + Number(formData.value.customPeriodInDays))
         }
       }
     }
@@ -213,8 +217,8 @@ export function useSubscriptions() {
       cost: '',
       currency: 'EUR',
       plan: 'Monthly',
-      customPeriodInDays: null,
-      trialPeriodInDays: null,
+      customPeriodInDays: 30,
+      trialPeriodInDays: 7,
       startDate: new Date(),
       tags: [],
       note: '',
