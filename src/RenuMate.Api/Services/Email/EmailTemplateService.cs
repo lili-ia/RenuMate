@@ -115,37 +115,55 @@ public class EmailTemplateService : IEmailTemplateService
         string period, 
         string? note)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var daysRemaining = renewalDate.DayNumber - today.DayNumber;
+        
+        var countdownText = daysRemaining switch
+        {
+            0 => "is due <strong>today</strong>!",
+            1 => "will renew <strong>tomorrow</strong>.",
+            _ => $"will renew in <strong>{daysRemaining} days</strong>."
+        };
+
         return $@"
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.5; color: #333; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; background: #fafafa; }}
-                h1 {{ color: #0056b3; }}
-                ul {{ padding-left: 20px; }}
-                li {{ margin-bottom: 5px; }}
-                .footer {{ font-size: 12px; color: #888; margin-top: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <h1>Hi {userName}!</h1>
-                <p>This is a friendly reminder about your subscription <strong>{subscriptionName}</strong>.</p>
-                <p>Subscription details:</p>
-                <ul>
-                    <li>Plan: {plan}</li>
-                    <li>Start Date: {startDate:dd.MM.yyyy}</li>
-                    <li>Renewal Date: {renewalDate:dd.MM.yyyy}</li>
-                    <li>Cost: {cost}{currency}</li>
-                    <li>Period: {period}</li>
-                    <li>Note: {note}</li>
-                </ul>
-                <p>Thank you for using our service!</p>
-                <div class='footer'>
-                    This is an automated message. Please do not reply to this email.
+            <div style='font-family: sans-serif; color: #334155; max-width: 500px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;'>
+                <div style='background-color: #4f46e5; padding: 20px; text-align: center;'>
+                    <h2 style='color: #ffffff; margin: 0;'>Subscription Reminder</h2>
                 </div>
-            </div>
-        </body>
-        </html>";
+                
+                <div style='padding: 24px;'>
+                    <p style='font-size: 16px;'>Hi {userName},</p>
+                    <p style='font-size: 16px;'>
+                        Your <strong>{subscriptionName}</strong> subscription {countdownText}
+                    </p>
+                    
+                    <table width='100%' style='background-color: #f8fafc; border-radius: 12px; padding: 16px; margin: 20px 0;'>
+                        <tr>
+                            <td style='padding: 8px 0; color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;'>Cost</td>
+                            <td style='padding: 8px 0; text-align: right; font-weight: bold; color: #4f46e5;'>{cost} {currency}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 8px 0; color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;'>Renewal Date</td>
+                            <td style='padding: 8px 0; text-align: right; font-weight: bold;'>{renewalDate:dd.MM.yyyy}</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 8px 0; color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;'>Plan</td>
+                            <td style='padding: 8px 0; text-align: right; font-weight: bold;'>{plan}</td>
+                        </tr>
+                    </table>
+
+                    {(!string.IsNullOrEmpty(note) ? $@"
+                    <div style='border-left: 4px solid #e2e8f0; padding-left: 12px; font-style: italic; color: #475569; margin: 20px 0;'>
+                        ""{note}""
+                    </div>" : "")}
+
+                    <p style='font-size: 14px; color: #94a3b8; text-align: center; margin-top: 30px;'>
+                        Tracked via RenuMate
+                    </p>
+                    <p style='font-size: 10px; color: #94a3b8; text-align: center;'>
+                        This is an automated message. Please do not reply to this email. 
+                    </p>
+                </div>
+            </div>";
     }
 }
