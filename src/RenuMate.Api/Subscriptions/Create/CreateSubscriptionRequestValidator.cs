@@ -37,7 +37,8 @@ public class CreateSubscriptionRequestValidator : AbstractValidator<CreateSubscr
 
         RuleFor(x => x.StartDate)
             .NotEmpty().WithMessage("Start date is required.")
-            .NotEqual(DateOnly.FromDateTime(DateTime.MinValue)).WithMessage("Start date is required.");
+            .GreaterThanOrEqualTo(new DateOnly(1970, 1, 1))
+            .WithMessage("Start date cannot be earlier than January 1, 1970.");
 
         RuleFor(x => x.Cost)
             .GreaterThanOrEqualTo(0)

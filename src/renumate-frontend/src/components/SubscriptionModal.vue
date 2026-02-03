@@ -122,6 +122,8 @@ const handleSave = () => {
   emit('save');
 };
 
+const minAllowedDate = ref(new Date(1970, 0, 1));
+
 </script>
 
 <template>
@@ -258,6 +260,7 @@ const handleSave = () => {
                   @hide="touched.startDate = true"
                   date-format="dd/mm/yy" 
                   show-icon
+                  :minDate="minAllowedDate"
                   class="w-full"
                   panel-class="!bg-white !rounded-3xl !shadow-2xl !p-4 !border-0" 
                   :input-class="[
@@ -404,6 +407,13 @@ const handleSave = () => {
                 class="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
                 placeholder="https://icons/netflix.png..."
               />
+              <p
+                v-if="errors.PicLink"
+                class="mt-2 text-xs text-red-500 flex items-center gap-1"
+              >
+                <span class="w-1 h-1 bg-red-500 rounded-full inline-block"></span>
+                {{ errors.PicLink[0] }}
+              </p>
             </div>
             <div class="group">
               <label
@@ -416,6 +426,13 @@ const handleSave = () => {
                 class="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
                 placeholder="www.netflix.com/account/membership"
               />
+              <p
+                v-if="errors.CancelLink"
+                class="mt-2 text-xs text-red-500 flex items-center gap-1"
+              >
+                <span class="w-1 h-1 bg-red-500 rounded-full inline-block"></span>
+                {{ errors.CancelLink[0] }}
+              </p>
             </div>
 
             <div class="group">
